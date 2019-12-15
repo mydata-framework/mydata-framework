@@ -118,7 +118,14 @@ public class Param{
         params.add(param);
         return this;
     }
-
+    public Param AND(Param param){
+        if (this.params == null) {
+            params = new HashSet<>();
+            params.add(this);
+        }
+        params.add(param);
+        return this;
+    }
     public Set<Param> END(){
         if (this.params == null) {
             params = new HashSet<>();
