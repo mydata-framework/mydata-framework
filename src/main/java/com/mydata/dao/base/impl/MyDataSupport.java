@@ -780,7 +780,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public Double getStatisticsValue(Set<Param> pms, String property, StatisticsType functionName) {
+    public Double getStatisticsValue(StatisticsType functionName ,String property , Set<Param> pms) {
         if (property != null && functionName != null) {
             if (getCurrentTables().size() < 1) {
                 return 0d;
@@ -885,22 +885,27 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
+    public List<POJO> getAll(String... cls) {
+        return getRztPos(false, true, null, cls);
+    }
+
+    @Override
     public List<POJO> getListFromMater(Set<Param> pms, String... cls) {
         return getRztPos(false, false, pms, cls);
     }
 
     @Override
-    public List<POJO> getList(boolean isDistinct, Set<Param> pms, String... cls) {
+    public List<POJO> getList( Set<Param> pms, boolean isDistinct,String... cls) {
         return getRztPos(isDistinct, true, pms, cls);
     }
 
     @Override
-    public List<POJO> getListFromMater(boolean isDistinct, Set<Param> pms, String... cls) {
+    public List<POJO> getListFromMater(Set<Param> pms, boolean isDistinct,String... cls) {
         return getRztPos(isDistinct, false, pms, cls);
     }
 
     @Override
-    public List<POJO> getListAndOrderBy(LinkedHashSet<OrderBy> orderbys, Set<Param> pms, String... cls) {
+    public List<POJO> getListOrderBy(Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls) {
         if (getCurrentTables().size() < 1) {
             return new ArrayList<>(0);
         }
@@ -908,14 +913,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public List<POJO> getList(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms,
-                              String... cls) {
+    public List<POJO> getPageList(int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls) {
         return getRztPos(true, curPage, pageSize, orderbys, pms, cls);
     }
 
     @Override
-    public List<POJO> getListFromMaster(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms,
-                                        String... cls) {
+    public List<POJO> getPageListFromMaster(int curPage, int pageSize,Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls) {
         return getRztPos(false, curPage, pageSize, orderbys, pms, cls);
     }
 
@@ -925,28 +928,28 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public PageData<POJO> getPageInfo(Set<Param> pms, int curPage, int pageSize, String... cls) {
+    public PageData<POJO> getPageInfo(int curPage, int pageSize,Set<Param> pms, String... cls) {
         return getListFromNotSorted(true, curPage, pageSize, pms, cls);
     }
 
     @Override
-    public List<POJO> getListFromMaster(Set<Param> pms, int curPage, int pageSize, String... cls) {
+    public List<POJO> getPageListFromMaster(int curPage, int pageSize, Set<Param> pms, String... cls) {
         return getListFromNotSorted(false, curPage, pageSize, pms, cls).getDataList();
     }
 
     @Override
-    public List<POJO> getList(Set<Param> pms, int curPage, int pageSize, String... cls) {
+    public List<POJO> getPageList(int curPage, int pageSize, Set<Param> pms,  String... cls) {
         return getListFromNotSorted(true, curPage, pageSize, pms, cls).getDataList();
     }
 
     @Override
-    public PageData<Object[]> getGroupPageInfo(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms, LinkedHashMap<String, String> funs, String... groupby) {
+    public PageData<Object[]> getGroupPageInfo(int curPage, int pageSize, Set<Param> pms,LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
         if (pms == null) {
             pms = new HashSet<>();
         }
         Long groupbyCount = getGroupbyCount(new HashSet<>(pms), groupby);
         if (groupbyCount > 0) {
-            return new PageData<>(curPage, pageSize, groupbyCount, getGroupList(curPage, pageSize, orderbys, pms, funs, groupby));
+            return new PageData<>(curPage, pageSize, groupbyCount, getGroupPageList(curPage, pageSize, pms ,orderbys, funs, groupby));
         } else {
             return new PageData<>(curPage, pageSize, groupbyCount, new ArrayList<>(0));
         }
@@ -1057,17 +1060,16 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public List<Object[]> getGroupList(
+    public List<Object[]> getGroupPageList(
             int curPage, int pageSize,
-            LinkedHashSet<OrderBy> orderbys, Set<Param> pms,
+            Set<Param> pms,
+            LinkedHashSet<OrderBy> orderbys,
             LinkedHashMap<String, String> funs, String... groupby) {
         return grouplist(true, curPage, pageSize, orderbys, pms, funs, groupby);
     }
 
     @Override
-    public List<Object[]> getGroupListFromMaster(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys,
-                                                 Set<Param> pms, LinkedHashMap<String, String> funs, String... groupby) {
-
+    public List<Object[]> getGroupPageListFromMaster(int curPage, int pageSize,Set<Param> pms,LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
         return grouplist(false, curPage, pageSize, orderbys, pms, funs, groupby);
     }
 
@@ -1242,7 +1244,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public List<POJO> getListAndOrderBy(LinkedHashSet<OrderBy> orderbys, String... cls) {
+    public List<POJO> getAllOrderBy(LinkedHashSet<OrderBy> orderbys, String... cls) {
         if (getCurrentTables().size() < 1) {
             return new ArrayList<>(0);
         }
@@ -1250,7 +1252,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public List<POJO> getListByIds(List<Serializable> ids, String... strings) {
+    public List<POJO> getListByIdsIn(List<Serializable> ids, String... strings) {
         if (ids != null && ids.size() > 0) {
             Set<PropInfo> pis = getPropInfos();
             for (PropInfo fd : pis) {
@@ -1264,7 +1266,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public List<POJO> getList(String propertyName, List<Serializable> vls, String... cls) {
+    public List<POJO> getListByParamIn(String propertyName, List<Serializable> vls, String... cls) {
         if (vls != null && vls.size() > 0) {
             Set<PropInfo> pis = getPropInfos();
             for (PropInfo fd : pis) {
@@ -1353,12 +1355,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public POJO get(String propertyName, Serializable value, String... cls) {
+    public POJO getOne(String propertyName, Serializable value, String... cls) {
         return getObj(true, propertyName, value, cls);
     }
 
     @Override
-    public POJO getByMaster(String propertyName, Serializable value, String... cls) {
+    public POJO getOneByMaster(String propertyName, Serializable value, String... cls) {
         return getObj(false, propertyName, value, cls);
     }
 
@@ -1395,7 +1397,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public POJO get(Set<Param> pms, String... cls) {
+    public POJO getOne(Set<Param> pms, String... cls) {
         List<POJO> rzlist = getRztPos(false, true, pms, cls);
         if (rzlist.size() == 1) {
             return rzlist.get(0);
@@ -1807,22 +1809,22 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public List<Object> getVlList(String property, Set<Param> params) {
+    public List<Object> getVList(String property, Set<Param> params) {
         return getRztPos(property, params, true, false);
     }
 
     @Override
-    public List<Object> getVlListFromMaster(String property, Set<Param> params) {
+    public List<Object> getVListFromMaster(String property, Set<Param> params) {
         return getRztPos(property, params, false, false);
     }
 
     @Override
-    public List<Object> getVlList(String property, Set<Param> params, boolean isDistinct) {
+    public List<Object> getVList(String property, Set<Param> params, boolean isDistinct) {
         return getRztPos(property, params, true, isDistinct);
     }
 
     @Override
-    public List<Object> getVlListFromMaster(String property, Set<Param> params, boolean isDistinct) {
+    public List<Object> getVListFromMaster(String property, Set<Param> params, boolean isDistinct) {
         return getRztPos(property, params, false, isDistinct);
     }
 
@@ -1890,8 +1892,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public PageData<POJO> getPageInfo(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> params,
-                                      String... strings) {
+    public PageData<POJO> getPageInfo(int curPage, int pageSize, Set<Param> params, LinkedHashSet<OrderBy> orderbys,String... strings) {
         Long count = getCount(params);
         if (count > 0) {
             return new PageData<>(curPage, pageSize, count,
@@ -1902,8 +1903,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public PageData<POJO> getPageInfoFromMaster(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys,
-                                                Set<Param> params, String... strings) {
+    public PageData<POJO> getPageInfoFromMaster(int curPage, int pageSize,Set<Param> params, LinkedHashSet<OrderBy> orderbys,String... strings) {
         Long count = getCountFromMaster(params);
         if (count > 0) {
             return new PageData<>(curPage, pageSize, count,

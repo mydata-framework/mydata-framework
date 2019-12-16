@@ -47,15 +47,6 @@ public interface IMyData<POJO> {
     Integer update(Set<Param> pms, Map<String, Object> mps);
 
     /**
-     * 查询总记录数
-     * @param pms 条件
-     * @param distincts   distincts=>COUNT(distincts),  NULL => COUNT(*)
-     * @return
-     */
-    Long getCount(Set<Param> pms, String... distincts);
-
-
-    /**
      * 根据条件删除
      * @param pms 条件
      * @return
@@ -68,6 +59,14 @@ public interface IMyData<POJO> {
      * @return
      */
     Integer deleteById(Serializable... id);
+
+    /**
+     * 查询总记录数
+     * @param pms 条件
+     * @param distincts   distincts=>COUNT(distincts),  NULL => COUNT(*)
+     * @return
+     */
+    Long getCount(Set<Param> pms, String... distincts);
 
     /**
      * 根据条件查询所有记录
@@ -84,15 +83,48 @@ public interface IMyData<POJO> {
      * @param cls  NULL=>SELECT * FROM TABLE WHERE pms ORDER BY orderbys
      * @return
      */
-    List<POJO> getListAndOrderBy(LinkedHashSet<OrderBy> orderbys, Set<Param> pms, String... cls);
+    List<POJO> getListOrderBy(Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls);
 
     /**
-     * 查询排序列表
+     * 去重
+     * @param pms SELECT DISTINCT cls FROM TABLE WHERE pms
+     * @param isDistinct
+     * @param cls
+     * @return
+     */
+    List<POJO> getList(Set<Param> pms, boolean isDistinct, String... cls);
+
+    /**
+     * 查询全部
+     * @param cls
+     * @return
+     */
+    List<POJO> getAll(String... cls);
+
+    /**
+     * 查询全部并排序
      * @param orderbys SELECT cls FROM TABLE ORDER BY orderbys
      * @param cls NULL=>SELECT * FROM TABLE ORDER BY orderbys
      * @return
      */
-    List<POJO> getListAndOrderBy(LinkedHashSet<OrderBy> orderbys, String... cls);
+    List<POJO> getAllOrderBy(LinkedHashSet<OrderBy> orderbys, String... cls);
+
+    /**
+     * 根据主键列表查询
+     * @param ids SELECT cls FROM TABLE WHERE ID IN (ids)
+     * @param cls NULL=>SELECT * FROM TABLE WHERE ID IN (ids)
+     * @return
+     */
+    List<POJO> getListByIdsIn(List<Serializable> ids, String... cls);
+
+    /**
+     * 根据字段值列表查询
+     * @param propertyName SELECT cls FROM TABLE WHERE propertyName IN (vls)
+     * @param vls
+     * @param cls NULL=>SELECT * FROM TABLE WHERE propertyName IN (vls)
+     * @return
+     */
+    List<POJO> getListByParamIn(String propertyName, List<Serializable> vls, String... cls);
 
     /**
      * 根据主键查询对象
@@ -109,8 +141,7 @@ public interface IMyData<POJO> {
      * @param cls NULL=>SELECT * FROM TABLE WHERE propertyName=value
      * @return
      */
-    POJO get(String propertyName, Serializable value, String... cls);
-
+    POJO getOne(String propertyName, Serializable value, String... cls);
 
     /**
      * 根据多个限定条件查询对象  如果有多条返回 null
@@ -118,47 +149,40 @@ public interface IMyData<POJO> {
      * @param cls NULL=>SELECT * FROM TABLE WHERE pms
      * @return
      */
-    POJO get(Set<Param> pms, String... cls);
+    POJO getOne(Set<Param> pms, String... cls);
 
     /**
-     * 根据主键列表查询
-     * @param ids SELECT cls FROM TABLE WHERE ID IN (ids)
-     * @param cls NULL=>SELECT * FROM TABLE WHERE ID IN (ids)
+     * 不排序分页查询数据集合 性能好
+     * @param curPage SELECT cls FROM TABLE WHERE pms LIMIT 1,10
+     * @param pageSize
+     * @param pms
+     * @param cls NULL=>SELECT * FROM TABLE WHERE pms LIMIT 1,10
      * @return
      */
-    List<POJO> getListByIds(List<Serializable> ids, String... cls);
-
-    /**
-     * 根据字段值列表查询
-     * @param propertyName SELECT cls FROM TABLE WHERE propertyName IN (vls)
-     * @param vls
-     * @param cls NULL=>SELECT * FROM TABLE WHERE propertyName IN (vls)
-     * @return
-     */
-    List<POJO> getList(String propertyName, List<Serializable> vls, String... cls);
+    List<POJO> getPageList(int curPage, int pageSize, Set<Param> pms,  String... cls);
 
     /**
      * 根据条件分页排序查询
      * @param curPage SELECT cls FROM TABLE WHERE pms ORDER BY orderbys LIMIT ... curPage 1,pageSize 10
      * @param pageSize
-     * @param orderbys
      * @param pms
+     * @param orderbys
      * @param cls NULL=>SELECT * FROM TABLE WHERE pms ORDER BY orderbys LIMIT ... curPage 1,pageSize 10
      * @return
      */
-    List<POJO> getList(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms, String... cls);
+    List<POJO> getPageList(int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls);
 
     /**
      * 分组查询分页列表
      * @param curPage   SELECT  [funs...],[groupbys...] FROM TABLE  WHERE pms GROUP  BY  groupbys ORDER  BY orderbys  LIMIT ... curPage 1,pageSize 10
      * @param pageSize
-     * @param orderbys 排序字段名,必须包含在返回的数据之内,返回数据或是funs或是groupbys
      * @param pms
+     * @param orderbys 排序字段名,必须包含在返回的数据之内,返回数据或是funs或是groupbys
      * @param funs    <函数名,属性名>
      * @param groupby
      * @return [ [funs...,groupbys...] , [...] ]
      */
-    List<Object[]> getGroupList(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms, LinkedHashMap<String, String> funs, String... groupby);
+    List<Object[]> getGroupPageList(int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby);
 
     /**
      * 分组查询总记录数
@@ -169,6 +193,16 @@ public interface IMyData<POJO> {
     Long getGroupbyCount(Set<Param> pms, String... groupby);
 
     /**
+     * 分页不排序 性能高，速度快
+     * @param pms SELECT cls FROM TABLE WHERE pms LIMT 1,10
+     * @param curPage
+     * @param pageSize
+     * @param cls NULL=> SELECT * FROM TABLE WHERE pms LIMT 1,10
+     * @return
+     */
+    PageData<POJO> getPageInfo(int curPage, int pageSize,Set<Param> pms,String... cls);
+
+    /**
      * 获取分页列表
      * @param curPage SELECT cls FROM TABLE WHERE pms ORDER BY orderbys LIMIT 1,10
      * @param pageSize
@@ -177,7 +211,7 @@ public interface IMyData<POJO> {
      * @param cls
      * @return
      */
-    PageData<POJO> getPageInfo(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms,String... cls);
+    PageData<POJO> getPageInfo(int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls);
 
     /***
      * 分组分页
@@ -189,7 +223,7 @@ public interface IMyData<POJO> {
      * @param groupby  分组字段不能为空
      * @return [ [funs...,groupbys...] , [...] ]
      */
-    PageData<Object[]> getGroupPageInfo(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms,LinkedHashMap<String, String> funs, String... groupby);
+    PageData<Object[]> getGroupPageInfo(int curPage, int pageSize, Set<Param> pms,LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby);
 
     /**
      * 使用统计函数
@@ -198,26 +232,7 @@ public interface IMyData<POJO> {
      * @param functionName 函数名 StatisticsType.SUM, MIN, MAX
      * @return
      */
-    Double getStatisticsValue(Set<Param> pms, String property, StatisticsType functionName);
-
-    /**
-     * 不排序分页查询数据集合 性能好
-     * @param pms SELECT cls FROM TABLE WHERE pms LIMIT 1,10
-     * @param curPage
-     * @param pageSize
-     * @param cls NULL=>SELECT * FROM TABLE WHERE pms LIMIT 1,10
-     * @return
-     */
-    List<POJO> getList(Set<Param> pms, int curPage, int pageSize, String... cls);
-    /**
-     * 分页不排序 性能高，速度快
-     * @param pms SELECT cls FROM TABLE WHERE pms LIMT 1,10
-     * @param curPage
-     * @param pageSize
-     * @param cls NULL=> SELECT * FROM TABLE WHERE pms LIMT 1,10
-     * @return
-     */
-    PageData<POJO> getPageInfo(Set<Param> pms, int curPage, int pageSize, String... cls);
+    Double getStatisticsValue(StatisticsType functionName ,String property , Set<Param> pms);
 
     /**
      * 获取属性值列表
@@ -225,7 +240,7 @@ public interface IMyData<POJO> {
      * @param pms
      * @return
      */
-    List<Object> getVlList(String property, Set<Param> pms);
+    List<Object> getVList(String property, Set<Param> pms);
 
     /**
      * 去重 获取属性值列表
@@ -234,16 +249,7 @@ public interface IMyData<POJO> {
      * @param isDistinct
      * @return
      */
-    List<Object> getVlList(String property, Set<Param> pms, boolean isDistinct);
-
-    /**
-     * 去重
-     * @param isDistinct  SELECT DISTINCT cls FROM TABLE WHERE pms
-     * @param pms
-     * @param cls
-     * @return
-     */
-    List<POJO> getList(boolean isDistinct, Set<Param> pms, String... cls);
+    List<Object> getVList(String property, Set<Param> pms, boolean isDistinct);
 
     /**
      * 获取最小日期时间值
@@ -261,18 +267,18 @@ public interface IMyData<POJO> {
      */
     Date getMaxDate(Set<Param> pms, String dataTypePropertyName);
 
+    void refreshCurrentTables();
     List<POJO> getListFromMater(Set<Param> pms, String... cls);
     Long getCountFromMaster(Set<Param> pms, String... distincts);
     POJO getByIdFromMaster(Serializable id, String... strings);
-    POJO getByMaster(String propertyName, Serializable value, String... cls);
-    PageData<POJO> getPageInfoFromMaster(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> params,String... strings);
-    List<Object[]> getGroupListFromMaster(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms,LinkedHashMap<String, String> funs, String... groupby);
-    List<POJO> getListFromMaster(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms,String... cls);
-    void refreshCurrentTables();
-    List<POJO> getListFromMaster(Set<Param> pms, int curPage, int pageSize, String... cls);//从主库获取数据 不排序分页查询集合数据 性能最好
+    POJO getOneByMaster(String propertyName, Serializable value, String... cls);
+    PageData<POJO> getPageInfoFromMaster(int curPage, int pageSize, Set<Param> params,LinkedHashSet<OrderBy> orderbys, String... strings);
+    List<Object[]> getGroupPageListFromMaster(int curPage, int pageSize, Set<Param> pms,LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby);
+    List<POJO> getPageListFromMaster(int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls);
+    List<POJO> getPageListFromMaster(int curPage, int pageSize,Set<Param> pms,String... cls);//从主库获取数据 不排序分页查询集合数据 性能最好
     PageData<POJO> getPageInfoFromMaster(Set<Param> pms, int curPage, int pageSize, String... cls);//分页不排序 性能高，速度快
-    List<Object> getVlListFromMaster(String property, Set<Param> pms);
-    List<Object> getVlListFromMaster(String property, Set<Param> pms, boolean isDistinct);
-    List<POJO> getListFromMater(boolean isDistinct, Set<Param> pms, String... cls);
+    List<Object> getVListFromMaster(String property, Set<Param> pms);
+    List<Object> getVListFromMaster(String property, Set<Param> pms, boolean isDistinct);
+    List<POJO> getListFromMater(Set<Param> pms, boolean isDistinct,  String... cls);
     Long getGroupbyCountFromMaster(Set<Param> pms, String... groupby);
 }
