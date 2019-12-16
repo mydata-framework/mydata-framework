@@ -94,7 +94,7 @@ public class OrderBy {
         this.isDesc = isDesc;
     }
 
-    public static LinkedHashSet<OrderBy> getSet(OrderBy... bies) {
+    public static LinkedHashSet<OrderBy> getOrderBys(OrderBy... bies) {
         return new LinkedHashSet<>(Arrays.asList(bies));
     }
 }

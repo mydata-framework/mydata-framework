@@ -150,13 +150,13 @@ public interface IMyData<POJO> {
 
     /**
      * 分组查询分页列表
-     * @param curPage   SELECT func,* FROM TABLE WHERE pms GROUP BY groupby ORDER BY orderbys LIMIT 1,10
+     * @param curPage   SELECT  [funs...],[groupbys...] FROM TABLE  WHERE pms GROUP  BY  groupbys ORDER  BY orderbys  LIMIT  0,10;
      * @param pageSize
-     * @param orderbys
+     * @param orderbys 排序字段名,必须包含在返回的数据之内
      * @param pms
-     * @param funs    <函数,属性>
+     * @param funs    <函数名,属性名>
      * @param groupby
-     * @return
+     * @return [ [funs...,groupbys...] , [...] ]
      */
     List<Object[]> getGroupList(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms, LinkedHashMap<String, String> funs, String... groupby);
 
@@ -181,9 +181,9 @@ public interface IMyData<POJO> {
 
     /***
      * 分组分页
-     * @param curPage SELECT func,* FROM TABLE WHERE pms GROUP BY groupby ORDER BY orderbys LIMIT 1,10
+     * @param curPage  SELECT  [funs...],[groupbys...] FROM TABLE  WHERE pms GROUP  BY  groupbys ORDER  BY orderbys  LIMIT  0,10;
      * @param pageSize
-     * @param orderbys 排序需要包含在返回的数据之内
+     * @param orderbys 排序字段名,必须包含在返回的数据之内
      * @param pms      查询条件
      * @param funs     统计函数
      * @param groupby  分组字段不能为空

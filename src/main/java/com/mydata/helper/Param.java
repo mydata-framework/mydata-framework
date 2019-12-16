@@ -3,6 +3,7 @@ package com.mydata.helper;
 
 import com.mydata.em.Operate;
 import com.mydata.em.PmType;
+import sun.management.Agent;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -227,7 +228,7 @@ public class Param{
     }
 
     public static LinkedHashMap<String, Object> getMap(Object... ag) {
-        LinkedHashMap<String, Object> mp = new LinkedHashMap<String, Object>();
+        LinkedHashMap<String, Object> mp = new LinkedHashMap<>();
         if (ag != null && ag.length > 0 && ag.length % 2 == 0) {
             int i = 0;
             for (@SuppressWarnings("unused")
@@ -241,6 +242,26 @@ public class Param{
             }
         }
         return mp;
+    }
+    public static LinkedHashMap<String, String> getStringMap(String... ag) {
+        LinkedHashMap<String, String> mp = new LinkedHashMap<>();
+        if (ag != null && ag.length > 0 && ag.length % 2 == 0) {
+            int i = 0;
+            for (@SuppressWarnings("unused")
+                    Object o : ag) {
+                mp.put(String.valueOf(ag[i]), ag[++i]);
+                i++;
+                if (i == ag.length) {
+                    break;
+                }
+
+            }
+        }
+        return mp;
+    }
+
+    public static String[] getStringArr(String... ag) {
+        return ag;
     }
 
 }

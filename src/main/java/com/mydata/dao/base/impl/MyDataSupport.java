@@ -1057,7 +1057,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public List<Object[]> getGroupList(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms, LinkedHashMap<String, String> funs, String... groupby) {
+    public List<Object[]> getGroupList(
+            int curPage, int pageSize,
+            LinkedHashSet<OrderBy> orderbys, Set<Param> pms,
+            LinkedHashMap<String, String> funs, String... groupby) {
         return grouplist(true, curPage, pageSize, orderbys, pms, funs, groupby);
     }
 
@@ -1070,8 +1073,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private List<Object[]> grouplist(boolean readOnly, int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms, LinkedHashMap<String, String> funs, String... groupby) {
         try {
-            if (curPage < 1 || pageSize < 1 || groupby == null || groupby.length == 0
-                    || getCurrentTables().size() < 1) {
+            if (curPage < 1 || pageSize < 1 || groupby == null || groupby.length == 0 || getCurrentTables().size() < 1) {
                 return new ArrayList<>(0);
             }
             if (pms != null) {
@@ -1087,6 +1089,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             String whereSqlByParam = getWhereSqlByParam(pms);
 
             StringBuilder grpsql = new StringBuilder(KSentences.SELECT.getValue());
+            Set<PropInfo> propInfos = getPropInfos();
             /**
              * 拼接查询函数
              */
@@ -1094,10 +1097,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 Iterator<Entry<String, String>> enite = funs.entrySet().iterator();
                 while (enite.hasNext()) {
                     Entry<String, String> funen = enite.next();
-                    for (PropInfo p : getPropInfos()) {
+                    for (PropInfo p : propInfos) {
                         if (p.getPname().equals(funen.getValue())) {
-                            grpsql.append(funen.getKey().trim().toUpperCase()).append("(").append(p.getCname().trim())
-                                    .append(")").append(KSentences.COMMA.getValue());
+                            grpsql.append(funen.getKey().trim().toUpperCase()).append("(").append(p.getCname().trim()).append(")").append(KSentences.COMMA.getValue());
                             break;
                         }
                     }
@@ -1107,7 +1109,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
              * 拼接查询字段
              */
             for (int i = 0; i < groupby.length; i++) {
-                for (PropInfo p : getPropInfos()) {
+                for (PropInfo p : propInfos) {
                     if (groupby[i].equals(p.getPname())) {
                         grpsql.append(p.getCname());
                         break;
@@ -1136,8 +1138,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     grpsql.append(KSentences.UNION_ALL.getValue());
                 }
             }
-            grpsql.append(")  gdt ").append(KSentences.GROUPBY.getValue()).append(groupbysql(groupby))
-                    .append(getHavingSql(hvcs));
+            grpsql.append(")  gdt ").append(KSentences.GROUPBY.getValue()).append(groupbysql(groupby)).append(getHavingSql(hvcs));
+
+
             if (orderbys != null && orderbys.size() > 0) {
                 grpsql.append(KSentences.ORDERBY.getValue());
                 Iterator<OrderBy> obite = orderbys.iterator();
@@ -1148,9 +1151,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         Set<Entry<String, String>> ens = funs.entrySet();
                         for (Entry<String, String> en : ens) {
                             if (en.getValue().equals(ob.getPropertyName())) {
-                                grpsql.append(en.getKey().trim().toUpperCase()).append("(").append(en.getValue().trim())
-                                        .append(")");
-
+                                Optional<PropInfo> propInfoOptional = propInfos.stream().filter(p -> p.getPname().equals(en.getValue().trim())).findFirst();
+                                if (propInfoOptional.isPresent()) {
+                                    grpsql.append(en.getKey().trim().toUpperCase()).append("(").append(propInfoOptional.get().getCname()).append(")");
+                                } else {
+                                    throw new IllegalArgumentException(String.format("In %s ,Can not find field %s",this.domainClazz.getSimpleName(),en.getValue()));
+                                }
                             }
                         }
                     } else {
