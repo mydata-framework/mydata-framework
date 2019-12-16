@@ -139,20 +139,20 @@ public interface IMyData<POJO> {
 
     /**
      * 根据条件分页排序查询
-     * @param curPage SELECT cls FROM TABLE WHERE pms ORDER BY orderbys LIMIT curPage 1,pageSize 10
+     * @param curPage SELECT cls FROM TABLE WHERE pms ORDER BY orderbys LIMIT ... curPage 1,pageSize 10
      * @param pageSize
      * @param orderbys
      * @param pms
-     * @param cls NULL=>SELECT * FROM TABLE WHERE pms ORDER BY orderbys LIMIT curPage 1,pageSize 10
+     * @param cls NULL=>SELECT * FROM TABLE WHERE pms ORDER BY orderbys LIMIT ... curPage 1,pageSize 10
      * @return
      */
     List<POJO> getList(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms, String... cls);
 
     /**
      * 分组查询分页列表
-     * @param curPage   SELECT  [funs...],[groupbys...] FROM TABLE  WHERE pms GROUP  BY  groupbys ORDER  BY orderbys  LIMIT  0,10;
+     * @param curPage   SELECT  [funs...],[groupbys...] FROM TABLE  WHERE pms GROUP  BY  groupbys ORDER  BY orderbys  LIMIT ... curPage 1,pageSize 10
      * @param pageSize
-     * @param orderbys 排序字段名,必须包含在返回的数据之内
+     * @param orderbys 排序字段名,必须包含在返回的数据之内,返回数据或是funs或是groupbys
      * @param pms
      * @param funs    <函数名,属性名>
      * @param groupby
@@ -183,11 +183,11 @@ public interface IMyData<POJO> {
      * 分组分页
      * @param curPage  SELECT  [funs...],[groupbys...] FROM TABLE  WHERE pms GROUP  BY  groupbys ORDER  BY orderbys  LIMIT  0,10;
      * @param pageSize
-     * @param orderbys 排序字段名,必须包含在返回的数据之内
+     * @param orderbys 排序字段名,必须包含在返回的数据之内,返回数据或是funs或是groupbys
      * @param pms      查询条件
      * @param funs     统计函数
      * @param groupby  分组字段不能为空
-     * @return 函数在前分组字段在后
+     * @return [ [funs...,groupbys...] , [...] ]
      */
     PageData<Object[]> getGroupPageInfo(int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms,LinkedHashMap<String, String> funs, String... groupby);
 
