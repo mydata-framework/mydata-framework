@@ -15,6 +15,7 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
+import java.math.BigDecimal;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -738,6 +739,105 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     @Override
     public Date getMaxDate(Set<Param> pms, String property) {
         return getDateFuncValue(pms, property, StatisticsType.MAX);
+    }
+
+    @Override
+    public <T> T nativeQuery(String sql, Object[] pms, Class<T> c) {
+        try {
+            Field[] declaredFields = c.getDeclaredFields();
+            T t = c.newInstance();
+            PreparedStatement st = st = this.getConnectionManager().getConnection().prepareStatement(sql);
+            for (int i = 1; i < pms.length + 1; i++) {
+                Object o = pms[i - 1];
+                if (o instanceof String) { st.setString(i, (String) o); }
+                else if (o instanceof Long) { st.setLong(i, (Long) o); }
+                else if (o instanceof Integer) { st.setInt(i, (Integer) o); }
+                else if (o instanceof Boolean) { st.setBoolean(i, (Boolean) o); }
+                else if (o instanceof Double) { st.setDouble(i, (Double) o); }
+                else if (o instanceof BigDecimal) { st.setBigDecimal(i, (BigDecimal) o); }
+                else if (o instanceof Float) { st.setFloat(i, (Float) o); }
+                else if (o instanceof Date) { st.setDate(i, (java.sql.Date) o); }
+                else if (o instanceof Timestamp) { st.setTimestamp(i, (Timestamp) o); }
+                else if (o instanceof Time) { st.setTime(i, (Time)o); }
+                else if (o instanceof Blob) { st.setBlob(i, (Blob)o); }
+                else if (o instanceof Byte) { st.setByte(i, (Byte)o); }
+                else if (o instanceof Short) { st.setShort(i, (Short) o); }
+                else{
+                    String error = "NOT SUPPORT TYPE OF " + o.getClass();
+                    log.error(error);
+                    throw new IllegalStateException(error);
+                }
+            }
+            ResultSet rs = st.executeQuery();
+            while (rs.next()) {
+                for (int i = 0; i < declaredFields.length; i++) {
+                    Field field = declaredFields[i];
+                    String name = field.getName();
+                    if (field.isAnnotationPresent(Column.class)) {
+                        Column column = field.getAnnotation(Column.class);
+                        if (column.name()!=null&&!column.name().trim().equals("")){
+                            name = column.name();
+                        }
+                    }
+                    int columnIndex = rs.findColumn(name);
+                    Class<?> type = field.getType();
+                    Object value = null;
+                         if (type.equals(Byte.class)) { value = rs.getByte(columnIndex); }
+                    else if (type.equals(Short.class)) { value = rs.getShort(columnIndex); }
+                    else if (type.equals(Integer.class)) { value = rs.getInt(columnIndex); }
+                    else if (type.equals(Long.class)) { value = rs.getLong(columnIndex); }
+                    else if (type.equals(String.class)) { value = rs.getString(columnIndex); }
+                    else if (type.equals(Boolean.class)) { value = rs.getBoolean(columnIndex); }
+                    else if (type.equals(BigDecimal.class)) { value = rs.getBigDecimal(columnIndex); }
+                    else if (type.equals(Double.class)) { value = rs.getDouble(columnIndex); }
+                    else if (type.equals(Float.class)) { value = rs.getFloat(columnIndex); }
+                    else if (type.equals(Date.class)) { value = rs.getDate(columnIndex); }
+                    else if (type.equals(Timestamp.class)) { value = rs.getTimestamp(columnIndex); }
+                    else if (type.equals(Time.class)) { value = rs.getTime(columnIndex); }
+                    else{ continue;}
+                    field.setAccessible(true);
+                    try {
+                        field.set(t, value);
+                    } catch (IllegalAccessException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+            return t;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public int nativeExecute(String sql, Object[] pms) {
+        try {
+            PreparedStatement st = this.getConnectionManager().getConnection().prepareStatement(sql);
+            for (int i = 1; i < pms.length + 1; i++) {
+                Object o = pms[i - 1];
+                     if (o instanceof String) { st.setString(i, (String) o); }
+                else if (o instanceof Long) { st.setLong(i, (Long) o); }
+                else if (o instanceof Integer) { st.setInt(i, (Integer) o); }
+                else if (o instanceof Boolean) { st.setBoolean(i, (Boolean) o); }
+                else if (o instanceof Double) { st.setDouble(i, (Double) o); }
+                else if (o instanceof BigDecimal) { st.setBigDecimal(i, (BigDecimal) o); }
+                else if (o instanceof Float) { st.setFloat(i, (Float) o); }
+                else if (o instanceof Date) { st.setDate(i, (java.sql.Date) o); }
+                else if (o instanceof Timestamp) { st.setTimestamp(i, (Timestamp) o); }
+                else if (o instanceof Time) { st.setTime(i, (Time)o); }
+                else if (o instanceof Blob) { st.setBlob(i, (Blob)o); }
+                else if (o instanceof Byte) { st.setByte(i, (Byte)o); }
+                else if (o instanceof Short) { st.setShort(i, (Short) o); }
+                else{
+                    String error = "NOT SUPPORT TYPE OF " + o.getClass();
+                    log.error(error);
+                    throw new IllegalStateException(error);
+                }
+            }
+            return st.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private Date getDateFuncValue(Set<Param> pms, String property, StatisticsType st) {

@@ -267,6 +267,18 @@ public interface IMyData<POJO> {
      */
     Date getMaxDate(Set<Param> pms, String dataTypePropertyName);
 
+    /**
+     * 原生查询
+     * @param sql     SELECT * FROM TABLE WHERE id=? AND NAME=?
+     * @param pms
+     * @param result
+     * @param <T>
+     * @return
+     */
+    <T> T nativeQuery(String sql, Object[] pms, Class<T> result);
+
+    int nativeExecute(String sql,Object[] pms);
+
     void refreshCurrentTables();
     List<POJO> getListFromMater(Set<Param> pms, String... cls);
     Long getCountFromMaster(Set<Param> pms, String... distincts);
