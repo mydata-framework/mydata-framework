@@ -768,42 +768,91 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     throw new IllegalStateException(error);
                 }
             }
-            ResultSet rs = st.executeQuery();
-            while (rs.next()) {
-                for (int i = 0; i < declaredFields.length; i++) {
-                    Field field = declaredFields[i];
-                    String name = field.getName();
-                    if (field.isAnnotationPresent(Column.class)) {
-                        Column column = field.getAnnotation(Column.class);
-                        if (column.name()!=null&&!column.name().trim().equals("")){
-                            name = column.name();
-                        }
-                    }
-                    int columnIndex = rs.findColumn(name);
-                    Class<?> type = field.getType();
-                    Object value = null;
-                         if (type.equals(Byte.class)) { value = rs.getByte(columnIndex); }
-                    else if (type.equals(Short.class)) { value = rs.getShort(columnIndex); }
-                    else if (type.equals(Integer.class)) { value = rs.getInt(columnIndex); }
-                    else if (type.equals(Long.class)) { value = rs.getLong(columnIndex); }
-                    else if (type.equals(String.class)) { value = rs.getString(columnIndex); }
-                    else if (type.equals(Boolean.class)) { value = rs.getBoolean(columnIndex); }
-                    else if (type.equals(BigDecimal.class)) { value = rs.getBigDecimal(columnIndex); }
-                    else if (type.equals(Double.class)) { value = rs.getDouble(columnIndex); }
-                    else if (type.equals(Float.class)) { value = rs.getFloat(columnIndex); }
-                    else if (type.equals(Date.class)) { value = rs.getDate(columnIndex); }
-                    else if (type.equals(Timestamp.class)) { value = rs.getTimestamp(columnIndex); }
-                    else if (type.equals(Time.class)) { value = rs.getTime(columnIndex); }
-                    else{ continue;}
-                    field.setAccessible(true);
-                    try {
-                        field.set(t, value);
-                    } catch (IllegalAccessException e) {
-                        throw new RuntimeException(e);
-                    }
+            if (this.isShowSql) {
+                log.info(sql);
+                for (int i = 0; i < pms.length; i++) {
+                    log.info("param"+(i+1)+"="+pms[i].toString());
                 }
             }
-            return t;
+
+            ResultSet rs = st.executeQuery();
+            if (t instanceof String || t instanceof Number || t instanceof Boolean || t instanceof Date) {
+                if (rs.next()) {
+                    if (c.equals(String.class)) {
+                        t = (T) rs.getString(1);
+                    } else if (c.equals(Long.class)) {
+                        t = (T) new Long(rs.getString(1));
+                    } else if (c.equals(Double.class)) {
+                        t = (T) new Double(rs.getString(1));
+                    } else if (c.equals(Integer.class)) {
+                        t = (T) new Integer(rs.getString(1));
+                    } else if (c.equals(Short.class)) {
+                        t = (T) new Short(rs.getString(1));
+                    } else if (c.equals(Byte.class)) {
+                        t = (T) new Byte(rs.getString(1));
+                    } else if (c.equals(Float.class)) {
+                        t = (T) new Float(rs.getString(1));
+                    } else if (c.equals(Boolean.class)) {
+                        String str = rs.getString(1);
+                        if (str.equals("1") || str.equalsIgnoreCase("true")) {
+                            t = (T) new Boolean(true);
+                        } else {
+                            t = (T) new Boolean(false);
+                        }
+                    } else if (c.equals(BigDecimal.class)) {
+                        t = (T) rs.getBigDecimal(1);
+                    } else if (c.equals(Date.class)) {
+                        t = (T) rs.getDate(1);
+                    } else if (c.equals(Timestamp.class)) {
+                        t = (T) rs.getTimestamp(1);
+                    } else if (c.equals(Time.class)) {
+                        t = (T) rs.getTime(1);
+                    }
+                }else {
+                    t = null;
+                }
+                return t;
+            }
+            else {
+                while (rs.next()) {
+                    for (int i = 0; i < declaredFields.length; i++) {
+                        Field field = declaredFields[i];
+                        if (field.isAnnotationPresent(Transient.class)) {
+                            continue;
+                        }
+                        String name = field.getName();
+                        if (field.isAnnotationPresent(Column.class)) {
+                            Column column = field.getAnnotation(Column.class);
+                            if (column.name()!=null&&!column.name().trim().equals("")){
+                                name = column.name();
+                            }
+                        }
+                        int columnIndex = rs.findColumn(name);
+                        Class<?> type = field.getType();
+                        Object value = null;
+                        if (type.equals(Byte.class)) { value = rs.getByte(columnIndex); }
+                        else if (type.equals(Short.class)) { value = rs.getShort(columnIndex); }
+                        else if (type.equals(Integer.class)) { value = rs.getInt(columnIndex); }
+                        else if (type.equals(Long.class)) { value = rs.getLong(columnIndex); }
+                        else if (type.equals(String.class)) { value = rs.getString(columnIndex); }
+                        else if (type.equals(Boolean.class)) { value = rs.getBoolean(columnIndex); }
+                        else if (type.equals(BigDecimal.class)) { value = rs.getBigDecimal(columnIndex); }
+                        else if (type.equals(Double.class)) { value = rs.getDouble(columnIndex); }
+                        else if (type.equals(Float.class)) { value = rs.getFloat(columnIndex); }
+                        else if (type.equals(Date.class)) { value = rs.getDate(columnIndex); }
+                        else if (type.equals(Timestamp.class)) { value = rs.getTimestamp(columnIndex); }
+                        else if (type.equals(Time.class)) { value = rs.getTime(columnIndex); }
+                        else{ continue;}
+                        field.setAccessible(true);
+                        try {
+                            field.set(t, value);
+                        } catch (IllegalAccessException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
+                return t;
+            }
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -832,6 +881,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     String error = "NOT SUPPORT TYPE OF " + o.getClass();
                     log.error(error);
                     throw new IllegalStateException(error);
+                }
+            }
+            if (this.isShowSql) {
+                log.info(sql);
+                for (int i = 0; i < pms.length; i++) {
+                    log.info("param"+(i+1)+"="+pms[i].toString());
                 }
             }
             return st.executeUpdate();
