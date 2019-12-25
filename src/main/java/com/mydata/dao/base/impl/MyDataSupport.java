@@ -3,6 +3,7 @@ package com.mydata.dao.base.impl;
 import com.mydata.annotation.ColumnRule;
 import com.mydata.dao.base.IMyData;
 import com.mydata.em.*;
+import com.mydata.exception.ObjectOptimisticLockingFailureException;
 import com.mydata.helper.*;
 import com.mydata.helper.OrderBy;
 import com.mydata.manager.ConnectionManager;
@@ -708,6 +709,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return 0;
     }
+
 
     @Override
     public Integer delete(Set<Param> pms) {
@@ -1930,6 +1932,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     }
 
+    //get field obj
     private Object getPropValue(POJO pojo, Field fd) {
         try {
             fd.setAccessible(true);
@@ -2415,28 +2418,96 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public void update(POJO po) {
-        String idname = getPrimaryKeyPname();
+        String primaryKeyName = getPrimaryKeyPname();
+        Set<PropInfo> propInfos = getPropInfos();
         Set<Param> pms = new HashSet<>(1);
-        Map<String, Object> newValues = new HashMap<>(getPropInfos().size());
+        Map<String, Object> newValues = new HashMap<>(propInfos.size());
         Field[] fds = domainClazz.getDeclaredFields();
-        for (PropInfo p : getPropInfos()) {
-            for (Field fd : fds) {
-                if (paired(p, fd)) {
-                    Object propValue = getPropValue(po, fd);
-                    if (p.getPname().equals(idname)) {
+        Object id = null;
+        boolean version = false;
+        String versionPname = null;
+        Long oldVersion = null;
+        for (PropInfo propInfo : propInfos) {
+            for (Field field : fds) {
+                if (paired(propInfo, field)) {
+                    Object propValue = getPropValue(po, field);
+                    if (propInfo.getPname().equals(primaryKeyName)) {
                         if (propValue != null) {
-                            pms.add(new Param(p.getPname(), Operate.EQ, propValue));
+                            id = propValue;
+                            pms.add(new Param(propInfo.getPname(), Operate.EQ, id));
                         } else {
                             throw new IllegalArgumentException("主键的值不能为空！");
                         }
-                    } else {
-                        newValues.put(p.getPname(), propValue);
+                    }
+                    else if (field.isAnnotationPresent(Version.class)) {
+                        version = true;
+                        versionPname = propInfo.getPname();
+                        pms.add(new Param(versionPname, Operate.EQ, propValue));
+                        oldVersion = Long.parseLong(propValue.toString());
+                        newValues.put(versionPname, oldVersion+1);
+                    }
+                    else {
+                        newValues.put(propInfo.getPname(), propValue);
                     }
                 }
             }
         }
+        try {
+            if (newValues != null && newValues.size() > 0) {
+                Set<String> tableNames = getTableNamesByParams(pms);
+                Set<PropInfo> pps = getPropInfos();
+                int ttc = 0;
+                boolean isShowSqled = false;
+                for (String tableName : tableNames) {
+                    StringBuilder buf = new StringBuilder(KSentences.UPDATE.getValue());
+                    buf.append(tableName).append(KSentences.SET.getValue());
+                    Iterator<Entry<String, Object>> it = newValues.entrySet().iterator();
+                    while (it.hasNext()) {
+                        Entry<String, Object> entry = it.next();
+                        for (PropInfo p : pps) {
+                            if (p.getPname().equals(entry.getKey())) {
+                                buf.append(p.getCname()).append(KSentences.EQ.getValue()).append(KSentences.POSITION_PLACEHOLDER.getValue());
+                                if (it.hasNext()) {
+                                    buf.append(KSentences.COMMA.getValue());
+                                }
+                            }
+                        }
+                    }
+                    buf.append(getWhereSqlByParam(pms));
 
-        update(pms, newValues);
+                    String sql = buf.toString();
+                    PreparedStatement statement = getStatementBySql(false, sql);
+                    if (this.getConnectionManager().isShowSql()&&!isShowSqled) {
+                        isShowSqled = true;
+                        log.info(sql);
+                        Set<Entry<String, Object>> entrySet = newValues.entrySet();
+                        for (Entry<String, Object> entry : entrySet) {
+                            log.info("param("+entry.getKey()+")"+"="+entry.getValue().toString());
+                        }
+                    }
+                    int i = setUpdateNewValues(newValues, statement);
+                    setWhereSqlParamValue(pms, statement, i);
+                    ttc += statement.executeUpdate();
+                }
+                if (version && ttc == 0) {
+                    POJO pojo = this.getById((Serializable) id, primaryKeyName, versionPname);
+                    if (pojo != null) {
+                        Field nowVersionField = pojo.getClass().getDeclaredField(versionPname);
+                        Long nowVersion = Long.parseLong(nowVersionField.get(pojo).toString());
+                        if (!oldVersion.equals(nowVersion)) {
+                            log.info("对象乐观锁定失败,数据版本已经不一致!");
+                            throw new ObjectOptimisticLockingFailureException();
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new IllegalStateException(e);
+        } finally {
+            this.getConnectionManager().closeConnection();
+
+        }
     }
 
     private List<QueryVo<Long>> getMultiTableCount(Boolean isRead, Set<Param> params, Set<String> tbs)
