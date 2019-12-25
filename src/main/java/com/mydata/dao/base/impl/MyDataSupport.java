@@ -1637,9 +1637,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             log.info(insertSql);
         }
         boolean autoincrement = isAutoIncrement();
-        PreparedStatement statement = autoincrement
-                ? this.getConnectionManager().getConnection().prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)
-                : this.getConnectionManager().getConnection().prepareStatement(insertSql);
+        Connection connection = this.getConnectionManager().getConnection();
+        PreparedStatement statement = autoincrement?connection.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS):connection.prepareStatement(insertSql);
         setParamVal(pojo, fields, tbe.getValue(), statement, this.getConnectionManager().getConnection());
         int cc = statement.executeUpdate();
         if (autoincrement) {
@@ -1890,41 +1889,51 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
     }
 
-    private void setParameter(POJO pojo, PreparedStatement statement, Connection conn, int index, PropInfo zd, Field fd)
+    private void setParameter(POJO pojo, PreparedStatement statement, Connection conn, int index, PropInfo propInfo, Field field)
             throws IllegalAccessException, SQLException {
-        Object vl = getPropValue(pojo, fd);
-        if (fd.getType().isEnum()) {
+        Object vl = getPropValue(pojo, field);
+        if (field.getType().isEnum()) {
             if (vl == null) {
                 statement.setObject(index, null);
             } else {
-                Class<Enum> cls = (Class<Enum>) fd.getType();
-                if (fd.isAnnotationPresent(Enumerated.class)
-                        && fd.getAnnotation(Enumerated.class).value() == EnumType.STRING) {
+                Class<Enum> cls = (Class<Enum>) field.getType();
+                if (field.isAnnotationPresent(Enumerated.class)
+                        && field.getAnnotation(Enumerated.class).value() == EnumType.STRING) {
                     statement.setObject(index, vl.toString());
                 } else {
                     statement.setObject(index, Enum.valueOf(cls, vl.toString()).ordinal());
                 }
             }
         } else {
-            if (vl == null && zd.getIsPrimarykey()) {
-                if (GenerationType.TABLE.equals(zd.getGeneratorValueAnnoStrategyVal())
+            if (vl == null && propInfo.getIsPrimarykey()) {
+                if (GenerationType.TABLE.equals(propInfo.getGeneratorValueAnnoStrategyVal())
                         && "MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
                     Long nextId = getNextIdFromIdTable(conn);
                     statement.setObject(index, nextId);
-                    fd.set(pojo, nextId);
-                } else if (autoNextVal(zd) && "Oracle".equalsIgnoreCase(this.dataBaseTypeName)) {
+                    field.set(pojo, nextId);
+                } else if (autoNextVal(propInfo) && "Oracle".equalsIgnoreCase(this.dataBaseTypeName)) {
                     Long nextId = getNextVal(conn);
                     statement.setObject(index, nextId);
-                    fd.set(pojo, nextId);
+                    field.set(pojo, nextId);
                 } else {
                     statement.setObject(index, vl);
                 }
             } else {
-                if (vl != null && "Oracle".equalsIgnoreCase(this.dataBaseTypeName)
-                        && (zd.getType() == Date.class || zd.getType().getSuperclass() == Date.class)) {
+                if (vl != null && "Oracle".equalsIgnoreCase(this.dataBaseTypeName) && (propInfo.getType() == Date.class || propInfo.getType().getSuperclass() == Date.class)) {
                     Date dt = (Date) vl;
                     statement.setTimestamp(index, new Timestamp(dt.getTime()));
                 } else {
+                    if (propInfo.getVersion()&&vl==null) {
+                        vl = 1L;
+                        try {
+                            field.setAccessible(true);
+                            field.set(pojo,vl);
+                        } catch (Exception e) {
+                            String error = "Set New Value To @Version Type Error!";
+                            log.error(error);
+                            throw new IllegalArgumentException(error);
+                        }
+                    }
                     statement.setObject(index, vl);
                 }
             }
@@ -2439,12 +2448,24 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                             throw new IllegalArgumentException("主键的值不能为空！");
                         }
                     }
-                    else if (field.isAnnotationPresent(Version.class)) {
+                    else if (propInfo.getVersion()) {
                         version = true;
                         versionPname = propInfo.getPname();
                         pms.add(new Param(versionPname, Operate.EQ, propValue));
                         oldVersion = Long.parseLong(propValue.toString());
-                        newValues.put(versionPname, oldVersion+1);
+                        if (oldVersion == null) {
+                            oldVersion = 0L;
+                        }
+                        Long newVersion = oldVersion + 1;
+                        newValues.put(versionPname, newVersion);
+                        try {
+                            field.setAccessible(true);
+                            field.set(po,newVersion);
+                        } catch (Exception e) {
+                            String error = "Set New Value To @Version Type Error!";
+                            log.error(error);
+                            throw new IllegalArgumentException(error);
+                        }
                     }
                     else {
                         newValues.put(propInfo.getPname(), propValue);
@@ -2493,20 +2514,28 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     POJO pojo = this.getById((Serializable) id, primaryKeyName, versionPname);
                     if (pojo != null) {
                         Field nowVersionField = pojo.getClass().getDeclaredField(versionPname);
+                        nowVersionField.setAccessible(true);
                         Long nowVersion = Long.parseLong(nowVersionField.get(pojo).toString());
                         if (!oldVersion.equals(nowVersion)) {
-                            log.info("对象乐观锁定失败,数据版本已经不一致!");
-                            throw new ObjectOptimisticLockingFailureException();
+                            String errorMsg = "Current Version Is "+oldVersion+",But The New Version Is "+nowVersion+",So Changes Cannot Be Performed In Different Versions.";
+                            throw new ObjectOptimisticLockingFailureException(errorMsg);
                         }
                     }
                 }
             }
-        } catch (Exception e) {
+        }catch (ObjectOptimisticLockingFailureException e) {
+            throw e;
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+            throw new IllegalStateException(e);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new IllegalStateException(e);
+        } catch (NoSuchFieldException e) {
             e.printStackTrace();
             throw new IllegalStateException(e);
         } finally {
             this.getConnectionManager().closeConnection();
-
         }
     }
 

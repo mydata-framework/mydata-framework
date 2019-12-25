@@ -150,6 +150,7 @@ public final class ConnectionManager implements IConnectionManager {
             }
             //表公开字段
             Field[] fields = domainClass.getDeclaredFields();
+            int versionNum = 0;
             for (Field field : fields) {
                 if (
                         !field.isAnnotationPresent(Transient.class)//非Transient
@@ -210,8 +211,20 @@ public final class ConnectionManager implements IConnectionManager {
                             info.setEnumType(EnumType.ORDINAL);
                         }
                     }
+                    if (field.isAnnotationPresent(Version.class)) {
+                        info.setVersion(true);
+                        versionNum++;
+                        if (!field.getType().equals(Long.class)){
+                            String error = domainClass.getName()+" @Version Type Must Be Long ";
+                            throw new IllegalArgumentException(error);
+                        }
+                    }
                     tableColumnInfos.add(info);
                 }
+            }
+            if (versionNum > 1) {
+                String error = domainClass.getName()+" @Version Type Has To Be Only 1 But Current Has "+versionNum;
+                throw new IllegalArgumentException(error);
             }
             tableNamePropsMap = new ConcurrentHashMap<String, LinkedHashSet<PropInfo>>();
             tableNamePropsMap.put(tableName, tableColumnInfos);

@@ -43,6 +43,8 @@ public class PropInfo {
     private EnumType enumType;
     // 数据库字段备注
     private String comment;
+    //是否是version
+    private Boolean version=false;
 
     public String getPname() {
         return pname;
@@ -178,5 +180,13 @@ public class PropInfo {
 
     public void setComment(String comment) {
         this.comment = comment;
+    }
+
+    public Boolean getVersion() {
+        return version;
+    }
+
+    public void setVersion(Boolean version) {
+        this.version = version;
     }
 }
