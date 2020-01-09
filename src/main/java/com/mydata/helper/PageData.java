@@ -42,8 +42,7 @@ public final class PageData<T> implements Serializable {
         this.pageSize = pageSize;
         this.dataList = dataList;
         this.totalCount = totalCount;
-        this.totalPage = this.totalCount % this.pageSize == 0 ? this.totalCount / this.pageSize
-                : this.totalCount / this.pageSize + 1;
+        this.totalPage = (totalCount+pageSize-1)/pageSize; //this.totalCount % this.pageSize == 0 ? this.totalCount / this.pageSize : this.totalCount / this.pageSize + 1;
         this.pageIndex = PgIdx.getPageIndex(10, curPage, this.totalPage);
         this.isNext = this.curPage < this.totalPage;
         this.isPrev = this.curPage > 1;

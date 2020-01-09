@@ -25,6 +25,7 @@ import java.util.Date;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
@@ -744,116 +745,26 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public <T> T nativeQuery(String sql, Object[] pms, Class<T> c) {
+    public <T> T nativeQuery(String sql, Object[] pms, Class<T> resultClass) {
         try {
-            Field[] declaredFields = c.getDeclaredFields();
-            T t = c.newInstance();
-            PreparedStatement st = st = this.getConnectionManager().getConnection().prepareStatement(sql);
-            for (int i = 1; i < pms.length + 1; i++) {
-                Object o = pms[i - 1];
-                if (o instanceof String) { st.setString(i, (String) o); }
-                else if (o instanceof Long) { st.setLong(i, (Long) o); }
-                else if (o instanceof Integer) { st.setInt(i, (Integer) o); }
-                else if (o instanceof Boolean) { st.setBoolean(i, (Boolean) o); }
-                else if (o instanceof Double) { st.setDouble(i, (Double) o); }
-                else if (o instanceof BigDecimal) { st.setBigDecimal(i, (BigDecimal) o); }
-                else if (o instanceof Float) { st.setFloat(i, (Float) o); }
-                else if (o instanceof Date) { st.setDate(i, (java.sql.Date) o); }
-                else if (o instanceof Timestamp) { st.setTimestamp(i, (Timestamp) o); }
-                else if (o instanceof Time) { st.setTime(i, (Time)o); }
-                else if (o instanceof Blob) { st.setBlob(i, (Blob)o); }
-                else if (o instanceof Byte) { st.setByte(i, (Byte)o); }
-                else if (o instanceof Short) { st.setShort(i, (Short) o); }
-                else{
-                    String error = "NOT SUPPORT TYPE OF " + o.getClass();
-                    log.error(error);
-                    throw new IllegalStateException(error);
-                }
-            }
-            if (this.isShowSql) {
-                log.info(sql);
-                for (int i = 0; i < pms.length; i++) {
-                    log.info("param"+(i+1)+"="+pms[i].toString());
-                }
-            }
-
+            T t = getT(resultClass);
+            PreparedStatement st = getPreparedStatement(sql, pms);
             ResultSet rs = st.executeQuery();
             if (t instanceof String || t instanceof Number || t instanceof Boolean || t instanceof Date) {
                 if (rs.next()) {
-                    if (c.equals(String.class)) {
-                        t = (T) rs.getString(1);
-                    } else if (c.equals(Long.class)) {
-                        t = (T) new Long(rs.getString(1));
-                    } else if (c.equals(Double.class)) {
-                        t = (T) new Double(rs.getString(1));
-                    } else if (c.equals(Integer.class)) {
-                        t = (T) new Integer(rs.getString(1));
-                    } else if (c.equals(Short.class)) {
-                        t = (T) new Short(rs.getString(1));
-                    } else if (c.equals(Byte.class)) {
-                        t = (T) new Byte(rs.getString(1));
-                    } else if (c.equals(Float.class)) {
-                        t = (T) new Float(rs.getString(1));
-                    } else if (c.equals(Boolean.class)) {
-                        String str = rs.getString(1);
-                        if (str.equals("1") || str.equalsIgnoreCase("true")) {
-                            t = (T) new Boolean(true);
-                        } else {
-                            t = (T) new Boolean(false);
-                        }
-                    } else if (c.equals(BigDecimal.class)) {
-                        t = (T) rs.getBigDecimal(1);
-                    } else if (c.equals(Date.class)) {
-                        t = (T) rs.getDate(1);
-                    } else if (c.equals(Timestamp.class)) {
-                        t = (T) rs.getTimestamp(1);
-                    } else if (c.equals(Time.class)) {
-                        t = (T) rs.getTime(1);
-                    }
+                    t = getRT(resultClass, t, rs);
                 }else {
                     t = null;
                 }
                 return t;
             }
             else {
-                while (rs.next()) {
-                    for (int i = 0; i < declaredFields.length; i++) {
-                        Field field = declaredFields[i];
-                        if (field.isAnnotationPresent(Transient.class)) {
-                            continue;
-                        }
-                        String name = field.getName();
-                        if (field.isAnnotationPresent(Column.class)) {
-                            Column column = field.getAnnotation(Column.class);
-                            if (column.name()!=null&&!column.name().trim().equals("")){
-                                name = column.name();
-                            }
-                        }
-                        int columnIndex = rs.findColumn(name);
-                        Class<?> type = field.getType();
-                        Object value = null;
-                        if (type.equals(Byte.class)) { value = rs.getByte(columnIndex); }
-                        else if (type.equals(Short.class)) { value = rs.getShort(columnIndex); }
-                        else if (type.equals(Integer.class)) { value = rs.getInt(columnIndex); }
-                        else if (type.equals(Long.class)) { value = rs.getLong(columnIndex); }
-                        else if (type.equals(String.class)) { value = rs.getString(columnIndex); }
-                        else if (type.equals(Boolean.class)) { value = rs.getBoolean(columnIndex); }
-                        else if (type.equals(BigDecimal.class)) { value = rs.getBigDecimal(columnIndex); }
-                        else if (type.equals(Double.class)) { value = rs.getDouble(columnIndex); }
-                        else if (type.equals(Float.class)) { value = rs.getFloat(columnIndex); }
-                        else if (type.equals(Date.class)) { value = rs.getDate(columnIndex); }
-                        else if (type.equals(Timestamp.class)) { value = rs.getTimestamp(columnIndex); }
-                        else if (type.equals(Time.class)) { value = rs.getTime(columnIndex); }
-                        else{ continue;}
-                        field.setAccessible(true);
-                        try {
-                            field.set(t, value);
-                        } catch (IllegalAccessException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
+                Field[] declaredFields = resultClass.getDeclaredFields();
+                if (rs.next()) {
+                    return getRTObj(declaredFields,resultClass, t, rs);
+                }else {
+                    return null;
                 }
-                return t;
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -861,8 +772,198 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
+    public <T> List<T> nativeQueryList(String sql, Object[] pms, Class<T> resultClass){
+        try {
+            T t = getT(resultClass);
+            PreparedStatement st = getPreparedStatement(sql, pms);
+            ResultSet rs = st.executeQuery();
+            List<T> tList = new ArrayList<>();
+            if (t instanceof String || t instanceof Number || t instanceof Boolean || t instanceof Date) {
+                while (rs.next()){
+                    tList.add(getRT(resultClass, getT(resultClass), rs));
+                }
+                return tList;
+            }
+            else {
+                Field[] declaredFields = resultClass.getDeclaredFields();
+                while (rs.next()) {
+                    tList.add(getRTObj(declaredFields,resultClass, getT(resultClass), rs));
+                }
+                return tList;
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public <T> PageData<T> nativeQueryPage(int curPage, int pageSize, String sql, Object[] pms, Class<T> result){
+        Matcher m = Pattern.compile("(?i)select.*(?i)from").matcher(sql);
+        String betweenSql = null;
+        if (m.find()){
+            String str = m.group();
+            betweenSql = str.substring(6,str.length()-4);
+        }
+        if (betweenSql == null) {
+            String error = "SQL GRAMMATICAL MISTAKE FOR " + sql ;
+            log.error(error);
+            throw new IllegalStateException(error);
+        }
+        String countSql = sql.replace( betweenSql , " COUNT(" + betweenSql + ") ");
+        Long totalCount = this.nativeQuery(countSql, pms, Long.class);
+        if (totalCount == 0) {
+            return new PageData<>(curPage, pageSize, totalCount, new ArrayList<>(0));
+        }
+        int startIndex = (curPage - 1) * pageSize;
+        String limitSql = sql+KSentences.LIMIT + startIndex + KSentences.COMMA + pageSize ;
+        List<T> dataList = nativeQueryList(limitSql , pms , result);
+        return new PageData<T>(curPage, pageSize, totalCount, dataList);
+    }
+
+    private <T> T getT(Class<T> resultClass) throws InstantiationException, IllegalAccessException {
+        T t = null;
+        Integer izreo = 0;
+        String zreo = "0";
+        if ( resultClass.equals(Byte.class)){ t = (T)new Byte(zreo); }
+        else if (resultClass.equals(Short.class)){ t = (T)new Short(zreo); }
+        else if (resultClass.equals(Integer.class)) { t = (T)new Integer(zreo); }
+        else if (resultClass.equals(Long.class)) { t = (T)new Long(zreo); }
+        else if (resultClass.equals(Float.class)) { t = (T)new Float(zreo); }
+        else if (resultClass.equals(Double.class)) { t = (T)new Double(zreo); }
+        else if (resultClass.equals(BigDecimal.class)) { t = (T)new BigDecimal(zreo); }
+        else if (resultClass.equals(Boolean.class)){t = (T)new Boolean(false); }
+        else if (resultClass.equals(java.sql.Date.class)){t = (T)new java.sql.Date(izreo);}
+        else if (resultClass.equals(Timestamp.class)){ t = (T)new Timestamp(izreo);}
+        else if (resultClass.equals(Time.class)){ t = (T)new Time(izreo);}
+        else {
+            t = resultClass.newInstance();
+        }
+        if (t instanceof Collection || t instanceof Map) {
+            String error = "NOT SUPPORT resultClass  OF " + resultClass;
+            log.error(error);
+            throw new IllegalStateException(error);
+        }
+        return t;
+    }
+
+    private PreparedStatement getPreparedStatement(String sql, Object[] pms) throws SQLException {
+        if (this.isShowSql) {
+            log.info(sql);
+            if (pms!=null){
+                for (int i = 0; i < pms.length; i++) {
+                    log.info("param"+(i+1)+"="+pms[i].toString());
+                }
+            }
+        }
+        PreparedStatement st = this.getConnectionManager().getConnection().prepareStatement(sql);
+        if (pms != null) {
+            for (int i = 1; i < pms.length + 1; i++) {
+                Object o = pms[i - 1];
+                if (o instanceof String) { st.setString(i, (String) o); }
+                else if (o instanceof Long) { st.setLong(i, (Long) o); }
+                else if (o instanceof Integer) { st.setInt(i, (Integer) o); }
+                else if (o instanceof Boolean) { st.setBoolean(i, (Boolean) o); }
+                else if (o instanceof Double) { st.setDouble(i, (Double) o); }
+                else if (o instanceof Date) { st.setDate(i, (java.sql.Date) o); }
+                else if (o instanceof BigDecimal) { st.setBigDecimal(i, (BigDecimal) o); }
+                else if (o instanceof Float) { st.setFloat(i, (Float) o); }
+                else if (o instanceof Time) { st.setTime(i, (Time)o); }
+                else if (o instanceof Timestamp) { st.setTimestamp(i, (Timestamp) o); }
+                else if (o instanceof Blob) { st.setBlob(i, (Blob)o); }
+                else if (o instanceof Byte) { st.setByte(i, (Byte)o); }
+                else if (o instanceof Short) { st.setShort(i, (Short) o); }
+                else{
+                    String error = "NOT SUPPORT TYPE IN pms OF " + o.getClass();
+                    log.error(error);
+                    throw new IllegalStateException(error);
+                }
+            }
+        }
+        return st;
+    }
+
+    private <T> T getRT(Class<T> resultClass, T t, ResultSet rs) throws SQLException {
+        if (resultClass.equals(String.class)) {
+            t = (T) rs.getString(1);
+        } else if (resultClass.equals(Long.class)) {
+            t = (T) new Long(rs.getString(1));
+        } else if (resultClass.equals(Double.class)) {
+            t = (T) new Double(rs.getString(1));
+        } else if (resultClass.equals(Integer.class)) {
+            t = (T) new Integer(rs.getString(1));
+        } else if (resultClass.equals(Short.class)) {
+            t = (T) new Short(rs.getString(1));
+        } else if (resultClass.equals(Byte.class)) {
+            t = (T) new Byte(rs.getString(1));
+        } else if (resultClass.equals(Float.class)) {
+            t = (T) new Float(rs.getString(1));
+        } else if (resultClass.equals(Boolean.class)) {
+            String str = rs.getString(1);
+            if (str.equals("1") || str.equalsIgnoreCase("true")) {
+                t = (T) new Boolean(true);
+            } else {
+                t = (T) new Boolean(false);
+            }
+        } else if (resultClass.equals(BigDecimal.class)) {
+            t = (T) rs.getBigDecimal(1);
+        } else if (resultClass.equals(Date.class) || resultClass.equals(java.sql.Date.class)) {
+            t = (T) rs.getDate(1);
+        } else if (resultClass.equals(Timestamp.class)) {
+            t = (T) rs.getTimestamp(1);
+        } else if (resultClass.equals(Time.class)) {
+            t = (T) rs.getTime(1);
+        }
+        return t;
+    }
+
+    private <T> T getRTObj(Field[] declaredFields,Class<T> resultClass, T t, ResultSet rs) throws SQLException {
+        for (int i = 0; i < declaredFields.length; i++) {
+            Field field = declaredFields[i];
+            if (field.isAnnotationPresent(Transient.class)) {
+                continue;
+            }
+            String name = field.getName();
+            if (field.isAnnotationPresent(Column.class)) {
+                Column column = field.getAnnotation(Column.class);
+                if (column.name()!=null&&!column.name().trim().equals("")){
+                    name = column.name();
+                }
+            }
+            int columnIndex = rs.findColumn(name);
+            Class<?> type = field.getType();
+            Object value = null;
+            if (type.equals(Byte.class)) { value = rs.getByte(columnIndex); }
+            else if (type.equals(Short.class)) { value = rs.getShort(columnIndex); }
+            else if (type.equals(Integer.class)) { value = rs.getInt(columnIndex); }
+            else if (type.equals(Long.class)) { value = rs.getLong(columnIndex); }
+            else if (type.equals(String.class)) { value = rs.getString(columnIndex); }
+            else if (type.equals(Boolean.class)) { value = rs.getBoolean(columnIndex); }
+            else if (type.equals(BigDecimal.class)) { value = rs.getBigDecimal(columnIndex); }
+            else if (type.equals(Double.class)) { value = rs.getDouble(columnIndex); }
+            else if (type.equals(Float.class)) { value = rs.getFloat(columnIndex); }
+            else if (type.equals(Date.class)) { value = rs.getDate(columnIndex); }
+            else if (type.equals(Timestamp.class)) { value = rs.getTimestamp(columnIndex); }
+            else if (type.equals(Time.class)) { value = rs.getTime(columnIndex); }
+            else{ continue;}
+            field.setAccessible(true);
+            try {
+                field.set(t, value);
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return t;
+    }
+
+    @Override
     public int nativeExecute(String sql, Object[] pms) {
         try {
+            if (this.isShowSql) {
+                log.info(sql);
+                for (int i = 0; i < pms.length; i++) {
+                    log.info("param"+(i+1)+"="+pms[i].toString());
+                }
+            }
             PreparedStatement st = this.getConnectionManager().getConnection().prepareStatement(sql);
             for (int i = 1; i < pms.length + 1; i++) {
                 Object o = pms[i - 1];
@@ -883,12 +984,6 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     String error = "NOT SUPPORT TYPE OF " + o.getClass();
                     log.error(error);
                     throw new IllegalStateException(error);
-                }
-            }
-            if (this.isShowSql) {
-                log.info(sql);
-                for (int i = 0; i < pms.length; i++) {
-                    log.info("param"+(i+1)+"="+pms[i].toString());
                 }
             }
             return st.executeUpdate();
@@ -2279,9 +2374,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             List<QueryVo<PreparedStatement>> pss = new ArrayList<>();
             Set<String> tbs = getTableNamesByParams(params);
             List<QueryVo<Long>> qvs = getMultiTableCount(isRead, params, tbs);
-            long sum = qvs.stream().mapToLong(QueryVo::getOv).sum();
-            if (sum < 1) {
-                return new PageData<>(curPage, pageSize, sum, new ArrayList<>(0));
+            long totalCount = qvs.stream().mapToLong(QueryVo::getOv).sum();
+            if (totalCount < 1) {
+                return new PageData<>(curPage, pageSize, totalCount, new ArrayList<>(0));
             }
             // 开始位置
             int start = getPageStartIndex(curPage, pageSize);
@@ -2322,7 +2417,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     break;
                 }
             }
-            return new PageData<>(curPage, pageSize, sum, querylist(pss, strings));
+            return new PageData<>(curPage, pageSize, totalCount, querylist(pss, strings));
         } catch (Exception e) {
             e.printStackTrace();
             throw new IllegalStateException(e);

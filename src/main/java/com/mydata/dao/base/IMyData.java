@@ -268,15 +268,43 @@ public interface IMyData<POJO> {
     Date getMaxDate(Set<Param> pms, String dataTypePropertyName);
 
     /**
-     * 原生查询
+     * 原生查询 单实例查询
      * @param sql     SELECT * FROM TABLE WHERE id=? AND NAME=?
+     * @param pms
+     * @param resultClass
+     * @param <T>
+     * @return
+     */
+    <T> T nativeQuery(String sql, Object[] pms, Class<T> resultClass);
+
+    /**
+     * 原生查询 List查询
+     * @param sql
+     * @param pms
+     * @param resultClass
+     * @param <T>
+     * @return
+     */
+    <T> List<T> nativeQueryList(String sql, Object[] pms, Class<T> resultClass);
+
+    /**
+     * 原生查询 分页查询
+     * @param curPage
+     * @param pageSize
+     * @param sql
      * @param pms
      * @param result
      * @param <T>
      * @return
      */
-    <T> T nativeQuery(String sql, Object[] pms, Class<T> result);
+    <T> PageData<T> nativeQueryPage(int curPage, int pageSize, String sql, Object[] pms, Class<T> result);
 
+    /**
+     * 原生执行操作
+     * @param sql
+     * @param pms
+     * @return
+     */
     int nativeExecute(String sql,Object[] pms);
 
     void refreshCurrentTables();
