@@ -798,18 +798,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public <T> PageData<T> nativeQueryPage(int curPage, int pageSize, String sql, Object[] pms, Class<T> result){
-        Matcher m = Pattern.compile("(?i)select.*(?i)from").matcher(sql);
-        String betweenSql = null;
-        if (m.find()){
-            String str = m.group();
-            betweenSql = str.substring(6,str.length()-4);
-        }
-        if (betweenSql == null) {
-            String error = "SQL GRAMMATICAL MISTAKE FOR " + sql ;
-            log.error(error);
-            throw new IllegalStateException(error);
-        }
-        String countSql = sql.replace( betweenSql , " COUNT(" + betweenSql + ") ");
+        String countSql = "SELECT COUNT(1) FROM ("+sql+") t";//KSentences.SELECT + KSentences.COMMA
         Long totalCount = this.nativeQuery(countSql, pms, Long.class);
         if (totalCount == 0) {
             return new PageData<>(curPage, pageSize, totalCount, new ArrayList<>(0));
