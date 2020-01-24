@@ -2587,7 +2587,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         log.info(sql);
                         Set<Entry<String, Object>> entrySet = newValues.entrySet();
                         for (Entry<String, Object> entry : entrySet) {
-                            log.info("param("+entry.getKey()+")"+"="+entry.getValue()==null?"NULL":entry.getValue().toString());
+                            if (entry.getValue() != null) {
+                                log.info("param("+entry.getKey()+")"+"="+entry.getValue().toString());
+                            }
                         }
                     }
                     int i = setUpdateNewValues(newValues, statement);
