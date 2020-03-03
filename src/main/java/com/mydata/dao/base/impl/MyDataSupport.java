@@ -330,7 +330,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             // )
             ctbsb.append(") ");
             if (this.hasTableComment) {
-                ctbsb.append(KSentences.COMMENT.getValue() + "'"+this.tableComment+"' ");
+                ctbsb.append(KSentences.COMMENT.getValue()).append(" '").append(this.tableComment).append("' ");
             }
             return ctbsb.toString();
         }
@@ -347,7 +347,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
     private String getMysqlColumnLine(PropInfo p) {
         StringBuilder ctsb = new StringBuilder();
-        ctsb.append(p.getCname()).append(" ");
+        ctsb.append("`").append(p.getCname()).append("` ");
         if (p.getType() == Integer.class) {
             ctsb.append("INT");
         } else if (p.getType() == Float.class) {
