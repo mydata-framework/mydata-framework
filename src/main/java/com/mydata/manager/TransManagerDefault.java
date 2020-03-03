@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import javax.annotation.Resource;
 import java.lang.invoke.MethodHandles;
 
-@Component @Aspect
+@Aspect
 public class TransManagerDefault {
     private static Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private @Resource IConnectionManager connectionManager;

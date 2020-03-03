@@ -20,7 +20,7 @@ import java.util.Map;
  *
  * @author Liu Tao
  */
-@Component  @Aspect
+@Aspect
 public class TransManager {
     private static Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
     private @Resource IConnectionManager connectionManager;
