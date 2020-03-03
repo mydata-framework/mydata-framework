@@ -9,14 +9,19 @@ import org.springframework.context.annotation.Bean;
 import javax.sql.DataSource;
 import java.util.Arrays;
 
-public class MydataConfig {
+public class MyDataConfig {
+
+    @Bean @ConfigurationProperties(prefix = "mydata", ignoreUnknownFields = true)
+    public MyDataProperties myDataProperties(){
+        MyDataProperties myDataProperties = new MyDataProperties();
+        return myDataProperties;
+    }
 
     @Bean
-    @ConfigurationProperties("mydata")
-    public IConnectionManager connectionManager(DataSource dataSource){
+    public IConnectionManager connectionManager(DataSource dataSource,MyDataProperties properties){
         ConnectionManager connectionManager = new ConnectionManager();
-        connectionManager.setDdl(true);
-        connectionManager.setShowSql(false);
+        connectionManager.setDdl(properties.getDdl());
+        connectionManager.setShowSql(properties.getShowSql());
         connectionManager.setConnectStr("set  names  utf8");
 
         connectionManager.setDataSource(dataSource);

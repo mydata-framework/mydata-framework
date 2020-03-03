@@ -1,0 +1,22 @@
+{
+  "hints": [],
+  "groups": [
+    {
+      "sourceType": "com.mydata.config.MyDataProperties",
+      "name": "mydata",
+      "type": "com.mydata.config.MyDataProperties"
+    }
+  ],
+  "properties": [
+    {
+      "sourceType": "com.mydata.config.MyDataProperties",
+      "name": "mydata.ddl",
+      "type": "java.lang.Boolean"
+    },
+    {
+      "sourceType": "com.mydata.config.MyDataProperties",
+      "name": "mydata.showSql",
+      "type": "java.lang.Boolean"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 package com.mydata.dao.base.impl;
 
 import com.mydata.annotation.ColumnRule;
+import com.mydata.annotation.TableComment;
 import com.mydata.dao.base.IMyData;
 import com.mydata.em.*;
 import com.mydata.exception.ObjectOptimisticLockingFailureException;
@@ -41,6 +42,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private boolean isShowSql;
     //ddl
     private boolean isGenerateDdl;
+    private boolean hasTableComment;
+    private String tableComment;
     //连接管理器
     public abstract IConnectionManager getConnectionManager();
     //单表表拆分最大数量
@@ -63,6 +66,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             this.domainClazz = MyDataHelper.getDomainClassByDaoClass(this.getClass());
             this.firstTableName = MyDataHelper.getFirstTableName(this.domainClazz);
             this.dataBaseTypeName = MyDataHelper.getDataBaseTypeName(getConnectionManager());
+            this.tableComment=MyDataHelper.getTableColumn(domainClazz);
+            this.hasTableComment=this.tableComment==null?false:true;
             this.isShowSql = getConnectionManager().isShowSql();
             this.isGenerateDdl = getConnectionManager().isDdl();
             //实体信息表
@@ -323,7 +328,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 }
             }
             // )
-            ctbsb.append(")");
+            ctbsb.append(") ");
+            if (this.hasTableComment) {
+                ctbsb.append(KSentences.COMMENT.getValue() + "'"+this.tableComment+"' ");
+            }
             return ctbsb.toString();
         }
         return "";

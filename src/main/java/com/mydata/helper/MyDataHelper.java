@@ -1,5 +1,6 @@
 package com.mydata.helper;
 
+import com.mydata.annotation.TableComment;
 import com.mydata.manager.IConnectionManager;
 
 import javax.persistence.Table;
@@ -37,6 +38,12 @@ public class MyDataHelper<Pojo> {
             }
         }
         return tableName;
+    }
+
+    public static String getTableColumn(Class<?> domainClazz) {
+        TableComment tableComment = domainClazz.getAnnotation(TableComment.class);
+        String tComment = tableComment.value();
+        return tComment;
     }
 
 }
