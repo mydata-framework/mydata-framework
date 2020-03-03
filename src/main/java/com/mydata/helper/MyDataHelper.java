@@ -42,8 +42,7 @@ public class MyDataHelper<Pojo> {
 
     public static String getTableColumn(Class<?> domainClazz) {
         TableComment tableComment = domainClazz.getAnnotation(TableComment.class);
-        String tComment = tableComment.value();
-        return tComment;
+        return tableComment==null?null:tableComment.value();
     }
 
 }
