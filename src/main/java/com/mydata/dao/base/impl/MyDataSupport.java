@@ -690,8 +690,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         Entry<String, Object> en = ite.next();
                         for (PropInfo p : pps) {
                             if (p.getPname().equals(en.getKey())) {
-                                buf.append(p.getCname()).append(KSentences.EQ.getValue())
-                                        .append(KSentences.POSITION_PLACEHOLDER.getValue());
+                                buf.append("`").append(p.getCname()).append("`").append(KSentences.EQ.getValue()).append(KSentences.POSITION_PLACEHOLDER.getValue());
                                 if (ite.hasNext()) {
                                     buf.append(KSentences.COMMA.getValue());
                                 }
