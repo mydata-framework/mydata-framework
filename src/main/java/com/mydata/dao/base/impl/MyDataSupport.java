@@ -2686,7 +2686,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                             sb.append(p.getCname());
                             sb.append(")");
                         } else {
-                            sb.append(p.getCname());
+                            sb.append("`").append(p.getCname()).append("`");
                         }
                         if (ob.getIsDesc()) {
                             sb.append(KSentences.DESC.getValue());
