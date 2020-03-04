@@ -1615,8 +1615,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private POJO getObj(Boolean isRead, String propertyName, Serializable value, String... cls) {
         try {
-            Entry<String, LinkedHashSet<PropInfo>> tbimp = ConnectionManager.getTbinfo(domainClazz).entrySet().iterator()
-                    .next();
+            Entry<String, LinkedHashSet<PropInfo>> tbimp = ConnectionManager.getTbinfo(domainClazz).entrySet().iterator().next();
             for (PropInfo fd : tbimp.getValue()) {
                 if (fd.getPname().equals(propertyName)) {
                     Set<Param> pms = Param.getParams(new Param(fd.getPname(), Operate.EQ, value));
@@ -1711,7 +1710,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         sb.append("(");
         Iterator<PropInfo> clite = tbe.getValue().iterator();
         while (clite.hasNext()) {
-            sb.append(clite.next().getCname());
+            sb.append("`").append(clite.next().getCname()).append("`");
             if (clite.hasNext()) {
                 sb.append(KSentences.COMMA.getValue());
             }
@@ -3023,13 +3022,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private void setcName(StringBuilder sb, Param pm, PropInfo p) {
-        if (pm.getCdType().equals(PmType.FUN)) {
+        if (!pm.getCdType().equals(PmType.FUN)) {
+            sb.append("`").append(p.getCname()).append("`");
+        } else {
             sb.append(pm.getFunName()).append("(");
-        }
-        sb.append(p.getCname());
-        if (pm.getCdType().equals(PmType.FUN)) {
+            sb.append(p.getCname());
             sb.append(")");
-
         }
     }
 
