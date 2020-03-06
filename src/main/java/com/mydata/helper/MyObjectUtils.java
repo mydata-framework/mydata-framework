@@ -80,61 +80,63 @@ public interface MyObjectUtils {
      * @throws IllegalAccessException
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    public static <T> void setObjectValue(Field fd, Object ov, T obj)
-            throws IllegalArgumentException, IllegalAccessException {
-
-        if (obj != null && ov != null && fd != null) {
+    public static <T> void setObjectValue(Field fd, Object ov, T obj) throws IllegalArgumentException, IllegalAccessException {
+        if (obj != null && fd != null) {
             fd.setAccessible(true);
-            if (fd.getType().isEnum()) {
-                Class<Enum> cls = (Class<Enum>) fd.getType();
-                if (ov instanceof Number) {
-                    Enum[] ccs = (Enum[]) fd.getType().getEnumConstants();
-                    fd.set(obj, Enum.valueOf(cls, ccs[Number.class.cast(ov).intValue()].name()));
-                } else if (ov instanceof String) {
-                    fd.set(obj, Enum.valueOf(cls, ov.toString()));
-                } else {
-                    fd.set(obj, ov);
-                }
-            } else {
-                if (ov.getClass() == BigDecimal.class && fd.getType() != BigDecimal.class) {
-                    BigDecimal bdov = (BigDecimal) ov;
-                    if (fd.getType() == Boolean.class) {
-                        if (bdov.byteValue() == 1) {
-                            fd.set(obj, true);
-                        } else {
-                            fd.set(obj, false);
-                        }
+            if (ov == null) {
+                fd.set(obj,ov);
+            }else {
+                if (fd.getType().isEnum()) {
+                    Class<Enum> cls = (Class<Enum>) fd.getType();
+                    if (ov instanceof Number) {
+                        Enum[] ccs = (Enum[]) fd.getType().getEnumConstants();
+                        fd.set(obj, Enum.valueOf(cls, ccs[Number.class.cast(ov).intValue()].name()));
+                    } else if (ov instanceof String) {
+                        fd.set(obj, Enum.valueOf(cls, ov.toString()));
                     } else {
-                        setNumberValue(fd, obj, bdov);
+                        fd.set(obj, ov);
                     }
-                } else if (ov.getClass() == BigInteger.class && fd.getType() != BigInteger.class) {
-                    BigInteger bdov = (BigInteger) ov;
-                    setNumberValue(fd, obj, bdov);
                 } else {
-                    if (fd.getType() == Time.class && ov.getClass() == Timestamp.class) {
-                        Timestamp tmst = (Timestamp) ov;
-                        fd.set(obj, new Time(tmst.getTime()));
-                    } else {
-                        if (ov instanceof Clob) {
-                            Clob clob = (Clob) ov;
-                            try (Reader crd = clob.getCharacterStream();) {
-                                char[] cbuf = new char[(int) clob.length()];
-                                crd.read(cbuf);
-                                fd.set(obj, new String(cbuf));
-                            } catch (IOException | SQLException e) {
-                                throw new IllegalStateException(e);
-                            }
-                        } else if (ov instanceof Blob) {
-                            Blob blob = (Blob) ov;
-                            try (InputStream bstream = blob.getBinaryStream();) {
-                                byte[] bts = new byte[(int) blob.length()];
-                                bstream.read(bts);
-                                fd.set(obj, bts);
-                            } catch (IOException | SQLException e) {
-                                throw new IllegalStateException(e);
+                    if (ov.getClass() == BigDecimal.class && fd.getType() != BigDecimal.class) {
+                        BigDecimal bdov = (BigDecimal) ov;
+                        if (fd.getType() == Boolean.class) {
+                            if (bdov.byteValue() == 1) {
+                                fd.set(obj, true);
+                            } else {
+                                fd.set(obj, false);
                             }
                         } else {
-                            fd.set(obj, ov);
+                            setNumberValue(fd, obj, bdov);
+                        }
+                    } else if (ov.getClass() == BigInteger.class && fd.getType() != BigInteger.class) {
+                        BigInteger bdov = (BigInteger) ov;
+                        setNumberValue(fd, obj, bdov);
+                    } else {
+                        if (fd.getType() == Time.class && ov.getClass() == Timestamp.class) {
+                            Timestamp tmst = (Timestamp) ov;
+                            fd.set(obj, new Time(tmst.getTime()));
+                        } else {
+                            if (ov instanceof Clob) {
+                                Clob clob = (Clob) ov;
+                                try (Reader crd = clob.getCharacterStream();) {
+                                    char[] cbuf = new char[(int) clob.length()];
+                                    crd.read(cbuf);
+                                    fd.set(obj, new String(cbuf));
+                                } catch (IOException | SQLException e) {
+                                    throw new IllegalStateException(e);
+                                }
+                            } else if (ov instanceof Blob) {
+                                Blob blob = (Blob) ov;
+                                try (InputStream bstream = blob.getBinaryStream();) {
+                                    byte[] bts = new byte[(int) blob.length()];
+                                    bstream.read(bts);
+                                    fd.set(obj, bts);
+                                } catch (IOException | SQLException e) {
+                                    throw new IllegalStateException(e);
+                                }
+                            } else {
+                                fd.set(obj, ov);
+                            }
                         }
                     }
                 }
