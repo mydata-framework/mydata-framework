@@ -16,14 +16,25 @@ public class OrderBy {
     // 是否降序排列
     private Boolean isDesc = true;
 
-    public String getPropertyName() {
-        return propertyName;
+    public OrderBy() {
+        super();
     }
 
     public OrderBy(String propertyName, Boolean isDesc) {
         super();
         this.propertyName = propertyName;
         this.isDesc = isDesc;
+    }
+
+    public OrderBy(String propertyName, String funName, Boolean isDesc) {
+        super();
+        this.propertyName = propertyName;
+        this.funName = funName;
+        this.isDesc = isDesc;
+    }
+
+    public String getPropertyName() {
+        return propertyName;
     }
 
     public void setPropertyName(String propertyName) {
@@ -83,18 +94,20 @@ public class OrderBy {
         return true;
     }
 
-    public OrderBy() {
-        super();
-    }
-
-    public OrderBy(String propertyName, String funName, Boolean isDesc) {
-        super();
-        this.propertyName = propertyName;
-        this.funName = funName;
-        this.isDesc = isDesc;
-    }
-
     public static LinkedHashSet<OrderBy> getOrderBys(OrderBy... bies) {
         return new LinkedHashSet<>(Arrays.asList(bies));
     }
+
+    //缩短代码长度,推荐静态导入 import static com.mydata.helper.Param.*;  import static com.mydata.em.Operate.*; import static com.mydata.helper.OrderBy.*;
+    public static LinkedHashSet<OrderBy> os(OrderBy... bies) {
+        return new LinkedHashSet<>(Arrays.asList(bies));
+    }
+    public static OrderBy o(String propertyName, Boolean isDesc){
+        return new OrderBy(propertyName,isDesc);
+    }
+    public static OrderBy o(String propertyName, String funName, Boolean isDesc){
+        return new OrderBy(propertyName,funName,isDesc);
+    }
+
+
 }

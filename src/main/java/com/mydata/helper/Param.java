@@ -3,7 +3,6 @@ package com.mydata.helper;
 
 import com.mydata.em.Operate;
 import com.mydata.em.PmType;
-import sun.management.Agent;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -31,110 +30,9 @@ public class Param{
     // 函数复合条件
     private String funName;
 
-
-    public Param OR(Param param){
-        this.setOrParam(param);
-        return this;
-    }
-
-    /**
-     * 除了between外,最常用的条件参数初始化
-     * @param pname
-     * @param operators
-     * @param value
-     */
-    public Param(String pname, Operate operators, Object value) {
+    public Param() {
         super();
-        this.pname = pname;
-        this.operators = operators;
-        if (operators.equals(Operate.IN) || operators.equals(Operate.NOT_IN)) {
-            this.inValue = (List<?>) value;
-        } else {
-            if (operators.equals(Operate.LIKE)) {
-                this.value = "%" + value + "%";
-            } else if (operators.equals(Operate.LIKE_LEFT)){
-                this.value = "%" + value;
-            } else if (operators.equals(Operate.LIKE_RIGHT)){
-                this.value = value + "%";
-            }else {
-                this.value = value;
-            }
-        }
     }
-
-    /**
-     * between 查询
-     * @param pname
-     * @param firstValue
-     * @param value
-     */
-    public Param(Object firstValue, String pname, Object value) {
-        super();
-        this.pname = pname;
-        this.firstValue = firstValue;
-        this.value = value;
-        this.operators = Operate.BETWEEN;
-    }
-
-    /**
-     * in 查询
-     * @param pname
-     * @param inValue
-     */
-    public Param(String pname, List<?> inValue) {
-        super();
-        this.pname = pname;
-        this.inValue = inValue;
-        this.operators = Operate.IN;
-    }
-
-    /**
-     * 用于使用 AND  END
-     */
-    private Set<Param> params;
-    public Param AND(String pname, Operate operators, Object value){
-        Param param = new Param(pname, operators, value);
-        if (this.params == null) {
-            params = new HashSet<>();
-            params.add(this);
-        }
-        params.add(param);
-        return this;
-    }
-    public Param AND(Object firstValue, String pname, Object value){
-        Param param = new Param(firstValue, pname, value);
-        if (this.params == null) {
-            params = new HashSet<>();
-            params.add(this);
-        }
-        params.add(param);
-        return this;
-    }
-    public Param AND(String pname, List<?> inValue){
-        Param param = new Param(pname, inValue);
-        if (this.params == null) {
-            params = new HashSet<>();
-            params.add(this);
-        }
-        params.add(param);
-        return this;
-    }
-    public Param AND(Param param){
-        if (this.params == null) {
-            params = new HashSet<>();
-            params.add(this);
-        }
-        params.add(param);
-        return this;
-    }
-    public Set<Param> END(){
-        if (this.params == null) {
-            params = new HashSet<>();
-            params.add(this);
-        }
-        return this.params;
-    }
-
 
     public Param(String pname, Operate operators, Object value, String funName, PmType cdType) {
         super();
@@ -143,11 +41,6 @@ public class Param{
         this.value = value;
         this.funName = funName;
         this.cdType = cdType;
-    }
-
-
-    public Param() {
-        super();
     }
 
     public String getPname() {
@@ -214,6 +107,110 @@ public class Param{
         this.funName = funName;
     }
 
+
+    /**
+     * 除了between外,最常用的条件参数初始化
+     * @param pname
+     * @param operators
+     * @param value
+     */
+    public Param(String pname, Operate operators, Object value) {
+        super();
+        this.pname = pname;
+        this.operators = operators;
+        if (operators.equals(Operate.IN) || operators.equals(Operate.NOT_IN)) {
+            this.inValue = (List<?>) value;
+        } else {
+            if (operators.equals(Operate.LIKE)) {
+                this.value = "%" + value + "%";
+            } else if (operators.equals(Operate.LIKE_LEFT)){
+                this.value = "%" + value;
+            } else if (operators.equals(Operate.LIKE_RIGHT)){
+                this.value = value + "%";
+            }else {
+                this.value = value;
+            }
+        }
+    }
+
+    /**
+     * between 查询
+     * @param pname
+     * @param firstValue
+     * @param value
+     */
+    public Param(Object firstValue, String pname, Object value) {
+        super();
+        this.pname = pname;
+        this.firstValue = firstValue;
+        this.value = value;
+        this.operators = Operate.BETWEEN;
+    }
+
+    /**
+     * in 查询
+     * @param pname
+     * @param inValue
+     */
+    public Param(String pname, List<?> inValue) {
+        super();
+        this.pname = pname;
+        this.inValue = inValue;
+        this.operators = Operate.IN;
+    }
+
+    public Param OR(Param param){
+        this.setOrParam(param);
+        return this;
+    }
+
+    /**
+     * 用于使用 AND  END
+     */
+    private Set<Param> params;
+    public Param AND(String pname, Operate operators, Object value){
+        Param param = new Param(pname, operators, value);
+        if (this.params == null) {
+            params = new HashSet<>();
+            params.add(this);
+        }
+        params.add(param);
+        return this;
+    }
+    public Param AND(Object firstValue, String pname, Object value){
+        Param param = new Param(firstValue, pname, value);
+        if (this.params == null) {
+            params = new HashSet<>();
+            params.add(this);
+        }
+        params.add(param);
+        return this;
+    }
+    public Param AND(String pname, List<?> inValue){
+        Param param = new Param(pname, inValue);
+        if (this.params == null) {
+            params = new HashSet<>();
+            params.add(this);
+        }
+        params.add(param);
+        return this;
+    }
+    public Param AND(Param param){
+        if (this.params == null) {
+            params = new HashSet<>();
+            params.add(this);
+        }
+        params.add(param);
+        return this;
+    }
+    public Set<Param> END(){
+        if (this.params == null) {
+            params = new HashSet<>();
+            params.add(this);
+        }
+        return this.params;
+    }
+
     public static Set<Param> getParams(Param... params) {
         if (params == null) {
             return new HashSet<>(0);
@@ -263,5 +260,40 @@ public class Param{
     public static String[] getStringArr(String... ag) {
         return ag;
     }
+
+    //缩短代码长度,推荐静态导入 import static com.mydata.helper.Param.*;  import static com.mydata.em.Operate.*; import static com.mydata.helper.OrderBy.*;
+    public static Set<Param> ps(Param... params) {
+        return getParams(params);
+    }
+
+    public static Param p(String pname, Operate operators, Object value) {
+        return new Param(pname, operators, value);
+    }
+
+    public static Param p(Object firstValue, String pname, Object value) {
+        return new Param(firstValue, pname, value);
+    }
+
+    public static Param p(String pname, List<?> inValue) {
+        return new Param(pname, pname, inValue);
+    }
+
+    public static Param p(String pname, Operate operators, Object value, String funName, PmType cdType) {
+        return new Param(pname, operators, value, funName, cdType);
+    }
+
+    public static LinkedHashMap<String, Object> m(Object... ag) {
+        return getMap(ag);
+    }
+
+    public static LinkedHashMap<String, String> sm(String... ag) {
+        return getStringMap(ag);
+    }
+
+    public static String[] sarr(String... ag) {
+        return getStringArr(ag);
+    }
+
+
 
 }
