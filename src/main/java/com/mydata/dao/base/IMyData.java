@@ -9,11 +9,9 @@ import com.mydata.helper.Param;
 import java.io.Serializable;
 import java.util.*;
 
-/***
- * DAO通用操作接口
- *
+/**
+ * IMyData
  * @author Liu Tao
- *
  * @param <POJO>
  */
 public interface IMyData<POJO> {

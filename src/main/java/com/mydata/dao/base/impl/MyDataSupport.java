@@ -1,7 +1,6 @@
 package com.mydata.dao.base.impl;
 
 import com.mydata.annotation.ColumnRule;
-import com.mydata.annotation.TableComment;
 import com.mydata.dao.base.IMyData;
 import com.mydata.em.*;
 import com.mydata.exception.ObjectOptimisticLockingFailureException;
@@ -26,73 +25,76 @@ import java.util.Date;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * MyDataSupport
+ * @param <POJO>
+ */
 public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private static Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
-    //当前操作的实体对象类型
+    //current operational domain class
     private Class<POJO> domainClazz ;
-    //当前操作的实体对应的表(准确来说是第一张表)
+    //current domain class mapper table
     private String firstTableName ;
-    //当前数据库类型 MySQL Oracle
+    //current connection database type name , ex MySQL Oracle
     private String dataBaseTypeName;
-    //showSql
+    //is showSql
     private boolean isShowSql;
-    //ddl
+    //is ddl
     private boolean isGenerateDdl;
+    //is has table comment
     private boolean hasTableComment;
+    //if has table comment , this is table comment content
     private String tableComment;
-    //连接管理器
+    //connection Manager
     public abstract IConnectionManager getConnectionManager();
-    //单表表拆分最大数量
+    //one table split max count
     private volatile int maxTableCount = 1024;
-    private static final String ALTER_TABLE_MODIFY_COLUMN = "ALTER TABLE  %s   MODIFY     %s   %s";
+    private static final String ALTER_TABLE_MODIFY_COLUMN = "ALTER TABLE %s MODIFY %s %s";
     private static final String INDEX_SUBFIX = "_idx";
-    private static final String ALTER_TABLE_S_ADD_S = " ALTER  table  %s  add  (%s)";
-    private static final String CREATE_INDEX_S = "CREATE      %s   INDEX      %s   ON   %s(%s)";
-    private static final String SEQUENCE_QUERY = "select  sequence_name  from  user_sequences  where  sequence_name=?";
+    private static final String ALTER_TABLE_S_ADD_S = "ALTER TABLE %s ADD (%s)";
+    private static final String CREATE_INDEX_S = "CREATE %s INDEX %s ON %s(%s)";
+    private static final String SEQUENCE_QUERY = "SELECT sequence_name FROM user_sequences WHERE sequence_name=?";
     private static final int MAX_IDLE_TABLE_COUNT = 8;
     private static final ForkJoinPool NEW_FIXED_THREAD_POOL = new ForkJoinPool(Integer.min(Runtime.getRuntime().availableProcessors() * 4, 32));
-    //实体类对应的当前已经分表的表名集合
+    //domain class key , already split table names value, map
     private volatile static ConcurrentHashMap<Class<?>, ConcurrentSkipListSet<String>> DOMAINCLASS_TABLES_MAP = new ConcurrentHashMap<Class<?>, ConcurrentSkipListSet<String>>();
 
 
     @PostConstruct
     public void init() {
         try {
-            //基本数据
+            //base init data
             this.domainClazz = MyDataHelper.getDomainClassByDaoClass(this.getClass());
             this.firstTableName = MyDataHelper.getFirstTableName(this.domainClazz);
-            this.dataBaseTypeName = MyDataHelper.getDataBaseTypeName(getConnectionManager());
-            this.tableComment=MyDataHelper.getTableColumn(domainClazz);
+            this.dataBaseTypeName = MyDataHelper.getDataBaseTypeName(this.getConnectionManager());
+            this.tableComment=MyDataHelper.getTableColumn(this.domainClazz);
             this.hasTableComment=this.tableComment==null?false:true;
-            this.isShowSql = getConnectionManager().isShowSql();
-            this.isGenerateDdl = getConnectionManager().isDdl();
-            //实体信息表
+            this.isShowSql = this.getConnectionManager().isShowSql();
+            this.isGenerateDdl = this.getConnectionManager().isDdl();
+            //domain column field properties
             final Set<PropInfo> pps = getPropInfos();
-            //如果开启ddl,则自动创建表
-            if (this.isGenerateDdl) {
-                createFirstTable(pps);
-            }
-            //设置实体信息的 数据库字段类型
-            setSqlType(pps);
+            //if ddl , generate ddl
+            if (this.isGenerateDdl) { this.createFirstTable(pps);}
+            //setting domain field mapping column type
+            this.setSqlType(pps);
         } catch (Exception e) {
             e.printStackTrace();
             log.info("[ MyData init error]");
         }
     }
 
-    //得到字段信息
+    //get domain column field properties
     protected Set<PropInfo> getPropInfos() {
-        //当前类对于可能多个表, 至少一个, 如果有分表可能是多个, 然后取出第一个表名队员的数据信息,即为实体的描述
+        //current class may be has more than 1 table for split , may be minimum is 1, then get the first table data info,this the domain column field properties, it's just how it is
         Map<String, LinkedHashSet<PropInfo>> tbinfo = ConnectionManager.getTbinfo(this.domainClazz);
         LinkedHashSet<PropInfo> propInfos = tbinfo.entrySet().iterator().next().getValue();
         return propInfos;
     }
 
-    //创建表
+    //create table
     private void createFirstTable(Set<PropInfo> propInfos) {
         try {
             String tableName = this.firstTableName;
@@ -101,29 +103,30 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 if (propInfos.stream().anyMatch(p -> autoNextVal(p))) {
                     String seqName = getSequenceName(tableName);
                     boolean isSeqExists = sequenceExists(connection, seqName);
-                    // 如果不存在就自动创建一个
+                    //if not exist , create
                     if (!isSeqExists) {
                         String createseqsql = String.format("%s %s", KSentences.CREATE_SEQUENCE, seqName);
-                        connection.prepareStatement(createseqsql).executeUpdate();
-                        if (this.getConnectionManager().isShowSql()) {
-                            log.info(createseqsql);
-                        }
+                        PreparedStatement preparedStatement = connection.prepareStatement(createseqsql);
+                        if (this.isShowSql) { log.error(preparedStatement.toString()); }
+                        preparedStatement.executeUpdate();
                     }
 
                 }
             } else if ("MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
-                // 判断是否采用全局ID表生成主键( 如果有字段上被Table标记,那么就是要加全局id,意味着要分表 )
+                //if domain ID @GeneratedValue strategy use TABLE , may be want split table, we need use global table id
                 boolean isUseGlobalTableId = propInfos.stream().anyMatch(p -> GenerationType.TABLE.equals(p.getGeneratorValueAnnoStrategyVal()));
                 if (isUseGlobalTableId) {
                     //TUSER_SEQ_ID
                     String idTableName = getIdTableName(tableName);
-                    //如果全局id表不存在则执行创建操作
+                    //if global table id TABLE not exist , create that
                     if (!isTableExists(connection, idTableName)) {
-                        //CREATE TABLE TUSER_SEQ_ID(SID BIGINT PRIMARY  KEY AUTO_INCREMENT) 创建一个自增表,作为分表的统一主键
+                        //CREATE TABLE TUSER_SEQ_ID(SID BIGINT PRIMARY  KEY AUTO_INCREMENT)
+                        //CREATE auto increment table for split tables id, the id is global
                         String createIdTableSql = String.format("%s %s(SID BIGINT PRIMARY  KEY AUTO_INCREMENT)", KSentences.CREATE_TABLE, idTableName);
-                        connection.prepareStatement(createIdTableSql).executeUpdate();
-                        if (this.isShowSql) { log.info(createIdTableSql); }
-                        // 如果全局ID表有初始值就使用初始值初始化,初始值必须小于10位的数值
+                        PreparedStatement preparedStatement = connection.prepareStatement(createIdTableSql);
+                        if (this.isShowSql) { log.error(preparedStatement.toString());/*log.info(createIdTableSql);*/ }
+                        preparedStatement .executeUpdate();
+                        //if global id table has init value , use this value of init, this value length < 10
                         Optional<PropInfo> opst =
                                 propInfos.stream().filter(
                                         id ->
@@ -133,29 +136,31 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                                     &&
                                                 Pattern.matches("\\d+", id.getGeneratorValueAnnoGeneratorVal().trim())
                                 ).findFirst();
-                        //如果存在分表字段,就创建全局id表
+                        //if has split column field, to create global id table
                         if (opst.isPresent()) {
                             //INSERT INTO TUSER_SEQ_ID SID VALUES( 10 )
                             String insertIdTableSql = genInsertIdTableSql(idTableName, opst.get().getGeneratorValueAnnoGeneratorVal().trim());
-                            connection.prepareStatement(insertIdTableSql).executeUpdate();
-                            if (this.isShowSql){ log.info(insertIdTableSql); }
+                            PreparedStatement preparedStatement1 = connection.prepareStatement(insertIdTableSql);
+                            if (this.isShowSql){log.error(preparedStatement1.toString()); /*log.info(insertIdTableSql);*/ }
+                            preparedStatement1.executeUpdate();
                         }
                     } else {
-                        // 清理旧的过期已被使用的ID
-                        // DELETE FROM TUSER_SEQ_ID
+                        //clean old global table id
+                        //DELETE FROM TUSER_SEQ_ID
                         String cleanIdSql = String.format("%s %s", KSentences.DELETE_FROM, idTableName);
-                        connection.prepareStatement(cleanIdSql).executeUpdate();
-                        if (this.isShowSql) { log.info(cleanIdSql); }
+                        PreparedStatement preparedStatement = connection.prepareStatement(cleanIdSql);
+                        if (this.isShowSql) { log.error(preparedStatement.toString());/*log.info(cleanIdSql);*/ }
+                        preparedStatement.executeUpdate();
                     }
                 }
             }
-            //如果表不存在,就创建表
+            //if table not exist , create that
             if (!isTableExists(connection, tableName)) {
-                //创建表
+                //create table
                 createTableBySql(tableName);
-                //获取表的切分规则
+                //get table split rule
                 ColumnRule columnRule = getColumnRule();
-                //如果存在需要切分,执行切分
+                //if need split , to split
                 if (columnRule != null && columnRule.ruleType().equals(RuleType.MOD)) {
                     int maxIdleTablecount = getMaxIdleTablecount(columnRule);
                     for (int i = 1; i < maxIdleTablecount ; i++) {
@@ -164,7 +169,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     }
                 }
             } else {
-                //如果表已存在
+                //if table is exist
                 List<PropInfo> cnames = getDbProps(tableName, connection);
                 if (cnames.size() < 1) {
                     cnames = getDbProps(tableName.toUpperCase(), connection);
@@ -179,13 +184,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                             } else if ((cn.getSqlTypes() == Types.INTEGER || cn.getSqlTypes() == Types.BIGINT)
                                     && (pi.getType() == Double.class || pi.getType() == Float.class)) {
                                 for (String t : getCurrentTables()) {
-                                    String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(),
-                                            getPrecisionDatatype(pi.getType().getSimpleName()));
-                                    if (this.getConnectionManager().isShowSql()) {
-                                        log.info(altertablesql);
-                                    }
-                                    this.getConnectionManager().getConnection().prepareStatement(altertablesql)
-                                            .executeUpdate();
+                                    String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(), getPrecisionDatatype(pi.getType().getSimpleName()));
+                                    PreparedStatement preparedStatement = connection.prepareStatement(altertablesql);
+                                    if (this.isShowSql) { log.error(preparedStatement.toString());/*log.info(altertablesql);*/ }
+                                    preparedStatement.executeUpdate();
                                 }
                             } else if ((cn.getSqlTypes() == Types.INTEGER || cn.getSqlTypes() == Types.BIGINT)
                                     && pi.getType() == String.class && !pi.getIsLob()) {
@@ -195,19 +197,13 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                 Temporal tp = fd.getAnnotation(Temporal.class);
                                 if (tp != null && tp.value().equals(TemporalType.TIMESTAMP)) {
                                     for (String t : getCurrentTables()) {
-                                        String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t,
-                                                cn.getCname(), getTimestampType());
-                                        if (this.getConnectionManager().isShowSql()) {
-                                            log.info(altertablesql);
-                                        }
-                                        this.getConnectionManager().getConnection().prepareStatement(altertablesql)
-                                                .executeUpdate();
+                                        String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(), getTimestampType());
+                                        PreparedStatement preparedStatement = connection.prepareStatement(altertablesql);
+                                        if (this.isShowSql) { log.error(preparedStatement.toString());/*log.info(altertablesql);*/ }
+                                        preparedStatement.executeUpdate();
                                     }
-
                                 }
-
                             }
-
                             continue a;
                         }
                     }
@@ -229,11 +225,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         for (String t : getCurrentTables()) {
                             try {
                                 String sql = String.format(ALTER_TABLE_S_ADD_S, t, avl);
-                                if (this.getConnectionManager().isShowSql()) {
-                                    log.info(sql);
-                                }
-                                this.getConnectionManager().getConnection().prepareStatement(sql).executeUpdate();
-
+                                PreparedStatement preparedStatement = connection.prepareStatement(sql);
+                                if (this.isShowSql) { log.error(preparedStatement.toString());/*log.info(sql);*/ }
+                                preparedStatement.executeUpdate();
                             } catch (Throwable e) {
                                 e.printStackTrace();
                             }
@@ -250,10 +244,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
     }
 
-    //表是否存在
+    //table is exist?
     private boolean isTableExists(Connection connection, String tableName) throws SQLException {
         ResultSet rs = getTableMeta(connection);
-        //循环所有的表,看当前表是否存在
+        //foreach all table names, watch the table name is exist
         while (rs.next()) {
             String rzn = rs.getString("TABLE_NAME");
             if (rzn.equalsIgnoreCase(tableName)) {
@@ -263,7 +257,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return false;
     }
 
-    //设置当前实体每个字段对于的数据库字段类型 ( 数据库字段类型 )
+    //setting domain field mapping column type
     private void setSqlType(Set<PropInfo> pps) {
         try {
             Connection connection = this.getConnectionManager().getConnection();
@@ -286,23 +280,24 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private String getIdTableName(String tableName) {
-        // TUSER_SEQ_ID
+        //TUSER_SEQ_ID
         return String.format("%s_%s_%s", tableName, "SEQ", "ID").toUpperCase();
     }
 
     private String genInsertIdTableSql(String idTableName, String valueOfInsert) {
-        // INSERT INTO ID_TABLE VALUES(%s)
-        String insertIdtable = String.format("%s %s %s", KSentences.INSERT, idTableName,String.format("  VALUES(%s)", valueOfInsert));
+        //INSERT INTO ID_TABLE VALUES(%s)
+        String insertIdtable = String.format("%s %s %s", KSentences.INSERT, idTableName,String.format(" VALUES(%s)", valueOfInsert));
         return insertIdtable;
     }
 
     private boolean createTableBySql(String tableName) throws SQLException {
         String csql = createTable(tableName);
         if (csql != null && csql.trim().length() > 0) {
-            // 执行建表语句
-            this.getConnectionManager().getConnection().prepareStatement(csql).executeUpdate();
-            if (isShowSql){ log.info(csql);}
-            // 创建索引
+            //execute create table sql
+            PreparedStatement preparedStatement = this.getConnectionManager().getConnection().prepareStatement(csql);
+            if (this.isShowSql){ log.error(preparedStatement.toString());/*log.info(csql);*/}
+            preparedStatement.executeUpdate();
+            //create table index
             createIndex(tableName);
             return true;
         } else {
@@ -310,7 +305,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
     }
 
-    //根据实体自动创建表，默认支持MYSQL，如果需要支持其他数据库，请在子类重写这个方法
+    //auto create table from domain field column properties info, default support MYSQL , if use other db , please override this method
     protected String createTable(String tableName) {
         Set<PropInfo> props = getPropInfos();
         if (props.size() > 0) {
@@ -320,7 +315,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             Iterator<PropInfo> psItrat = props.iterator();
             while (psItrat.hasNext()) {
                 PropInfo p = psItrat.next();
-                // ID BIGINT(20) PRIMARY KEY AUTO_INCREMTN COMMENT 'primaryKeyId',
+                //ID BIGINT(20) PRIMARY KEY AUTO_INCREMTN COMMENT 'primaryKeyId',
                 ctbsb.append(getColumnLine(p));
                 if (psItrat.hasNext()) {
                     // ,
@@ -399,14 +394,15 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 throw new IllegalStateException(e);
             }
         } else {
-            String ermsg = "POJO属性类型并不支持" + p.getType();
-            log.error(ermsg);
-            throw new IllegalStateException(ermsg);
+            String type = p.getType().toString();
+            String err = String.format("POJO field type not support mapping to column , %2 ; POJO字段属性类型并不支持, %s ;", type, type);
+            log.error(err);
+            throw new IllegalStateException(err);
         }
 
         if (p.getIsPrimarykey()) {
-            ctsb.append("  PRIMARY KEY  ");
-            String autoincrement = "  AUTO_INCREMENT  ";
+            ctsb.append(" PRIMARY KEY ");
+            String autoincrement = " AUTO_INCREMENT ";
             if (GenerationType.IDENTITY.equals(p.getGeneratorValueAnnoStrategyVal())) {
                 ctsb.append(autoincrement);
             } else {
@@ -416,10 +412,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
         } else {
             if (p.getIsNotNull()) {
-                ctsb.append("  NOT NULL  ");
+                ctsb.append(" NOT NULL ");
             }
             if (p.getIsUnique()) {
-                ctsb.append("  UNIQUE  ");
+                ctsb.append(" UNIQUE ");
             }
         }
         if (p.getComment()!=null&&!"".equals(p.getComment())) {
@@ -469,7 +465,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         } else if (p.getType() == String.class) {
             if (p.getIsLob()) {
                 sb.append("clob");
-            } else {// 存储字符长度跟字节无关
+            } else {
                 sb.append("varchar2(").append(p.getLength()).append(" char)");
             }
         } else if (p.getType() == byte[].class) {
@@ -488,47 +484,49 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 throw new IllegalStateException(e);
             }
         } else {
-            String ermsg = "POJO属性类型并不支持" + p.getType();
-            log.error(ermsg);
-            throw new IllegalStateException(ermsg);
+            String type = p.getType().toString();
+            String err = String.format("POJO field type not support mapping to column , %2 ; POJO字段属性类型并不支持, %s ;", type, type);
+            log.error(err);
+            throw new IllegalStateException(err);
         }
         if (p.getIsPrimarykey()) {
-            sb.append("  PRIMARY KEY  ");
+            sb.append(" PRIMARY KEY ");
         } else {
 
             if (p.getIsNotNull()) {
-                sb.append("  NOT NULL  ");
+                sb.append(" NOT NULL ");
             }
             if (p.getIsUnique()) {
-                sb.append("  UNIQUE  ");
+                sb.append(" UNIQUE ");
             }
 
         }
         return sb.toString();
     }
-    //获取最大切分表数量
+    //get table max split num
     private int getMaxIdleTablecount(ColumnRule crn) {
         if (crn.ruleType().equals(RuleType.MOD)) {
-            //如果按照取余,最大分表数位1024,以设置最低为准
+            //if use mod for split , the max table num is 1024, setting min is right
             return Long.valueOf(Math.min(maxTableCount, crn.value())).intValue();
         } else {
             return MAX_IDLE_TABLE_COUNT;
         }
     }
-    //创建索引
+
+    //create index
     private void createIndex(String tableName) throws SQLException {
-        //遍历props
+        //foreach properties
         for (PropInfo prop : getPropInfos()) {
-            //当前字段存在索引
+            //if current column has index
             if (indexIsExist(tableName, prop)) {
-                //循环当前实体对于的所有表(可能存在分表就会存在多个表)
+                //foreach current domains all tables , may be split table ,  has more than 1
                 for (String tableNameOfTables : getCurrentTables()) {
-                    //查看当前表是否存在这个索引
+                    //check current table item is has this index
                     if (indexIsExist(tableNameOfTables, prop)) {
-                        //如果不存在,就创建索引
+                        //if not has , then create this index
                         try {
-                            // 当前索引的名称
-                            // CREATE $UNIQUE$ INDEX $idcard_inx$ ON $User$($idcard(20),age$)"
+                            //current index name
+                            //CREATE $UNIQUE$ INDEX $idcard_inx$ ON $User$($idcard(20),age$)"
                             String sql = String.format(
                                                         CREATE_INDEX_S,
                                                         (prop.getIndex().unique() ? KSentences.UNIQUE : ""),
@@ -536,12 +534,13 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                                         tableNameOfTables,
                                                         getIndexColumns(prop)
                                                     );
-                            //执行索引插入
-                            this.getConnectionManager().getConnection().prepareStatement(sql).executeUpdate();
-                            if (this.isShowSql) { log.info(sql); }
+                            //execute index inset
+                            PreparedStatement preparedStatement = this.getConnectionManager().getConnection().prepareStatement(sql);
+                            if (this.isShowSql) { log.error(preparedStatement.toString()); /*log.info(sql);*/ }
+                            preparedStatement.executeUpdate();
                         } catch (Throwable e) {
                             e.printStackTrace();
-                            log.error("创建索引报错", e);
+                            log.error("create index error ", e);
                         }
                     }
                 }
@@ -564,13 +563,11 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return indexIsExistByTableName(tableName, prop) && indexIsExistByTableName(tableName.toUpperCase(), prop);
     }
     private boolean indexIsExistByTableName(String tbn, PropInfo prop) throws SQLException {
-        // 是否创建索引
+        //is has index flag
         if (prop.getIndex() != null) {
-            // 当前索引的名称
+            //current index name
             String idxName = getIndexName(prop);
-            /**
-             * 统计目前数据索引数据
-             */
+            //statistics current index data
             Map<String, String> grps = new HashMap<>(5);
             ResultSet saa = this.getConnectionManager().getConnection().getMetaData().getIndexInfo(null, null, tbn,
                     prop.getIndex().unique(), false);
@@ -594,8 +591,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 }
             }
             PropInfo propInfo = getPropInfoByPName(prop.getIndex().otherPropName());
-            if (!grps.containsKey(idxName)
-                    && !grps.containsValue(prop.getCname() + (propInfo == null ? "" : propInfo.getCname()))) {
+            if (!grps.containsKey(idxName) && !grps.containsValue(prop.getCname() + (propInfo == null ? "" : propInfo.getCname()))) {
                 return true;
             }
         }
@@ -662,7 +658,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return DOMAINCLASS_TABLES_MAP.get(domainClazz);
     }
-    //TODO ===
+
+
     @Override
     public Integer deleteById(Serializable... id) {
         if (id != null && id.length > 0) {
@@ -700,10 +697,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     buf.append(getWhereSqlByParam(pms));
                     String sql = buf.toString();
                     PreparedStatement statement = getStatementBySql(false, sql);
-                    if (this.getConnectionManager().isShowSql()) {
-                        log.info(sql);
-                    }
                     setWhereSqlParamValue(pms, statement, setUpdateNewValues(newValues, statement));
+                    if (this.isShowSql) { log.error(statement.toString());/*log.info(sql);*/ }
                     ttc += statement.executeUpdate();
                 }
                 return ttc;
@@ -727,7 +722,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return deleteByCondition(pms);
     }
 
-    // 判断是否为日期时间类型
+    //check field name is Date type
     private boolean isDate(String property) {
         for (PropInfo p : getPropInfos()) {
             if (p.getPname().equals(property)) {
@@ -756,6 +751,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         try {
             T t = getT(resultClass);
             PreparedStatement st = getPreparedStatement(sql, pms);
+            if (this.isShowSql) { log.error(st.toString()); }
             ResultSet rs = st.executeQuery();
             if (t instanceof String || t instanceof Number || t instanceof Boolean || t instanceof Date) {
                 if (rs.next()) {
@@ -783,6 +779,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         try {
             T t = getT(resultClass);
             PreparedStatement st = getPreparedStatement(sql, pms);
+            if (this.isShowSql) { log.error(st.toString()); }
             ResultSet rs = st.executeQuery();
             List<T> tList = new ArrayList<>();
             if (t instanceof String || t instanceof Number || t instanceof Boolean || t instanceof Date) {
@@ -843,14 +840,14 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private PreparedStatement getPreparedStatement(String sql, Object[] pms) throws SQLException {
-        if (this.isShowSql) {
-            log.info(sql);
-            if (pms!=null){
-                for (int i = 0; i < pms.length; i++) {
-                    log.info("param"+(i+1)+"="+pms[i].toString());
-                }
-            }
-        }
+//        if (this.isShowSql) {
+//            log.info(sql);
+//            if (pms!=null){
+//                for (int i = 0; i < pms.length; i++) {
+//                    log.info("param"+(i+1)+"="+pms[i].toString());
+//                }
+//            }
+//        }
         PreparedStatement st = this.getConnectionManager().getConnection().prepareStatement(sql);
         if (pms != null) {
             for (int i = 1; i < pms.length + 1; i++) {
@@ -954,12 +951,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     @Override
     public int nativeExecute(String sql, Object[] pms) {
         try {
-            if (this.isShowSql) {
-                log.info(sql);
-                for (int i = 0; i < pms.length; i++) {
-                    log.info("param"+(i+1)+"="+pms[i].toString());
-                }
-            }
+//            if (this.isShowSql) {
+//                log.info(sql);
+//                for (int i = 0; i < pms.length; i++) {
+//                    log.info("param"+(i+1)+"="+pms[i].toString());
+//                }
+//            }
             PreparedStatement st = this.getConnectionManager().getConnection().prepareStatement(sql);
             for (int i = 1; i < pms.length + 1; i++) {
                 Object o = pms[i - 1];
@@ -982,6 +979,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     throw new IllegalStateException(error);
                 }
             }
+            if (this.isShowSql) { log.error(st.toString()); }
             return st.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -1011,14 +1009,14 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         } else if (StatisticsType.MAX.equals(st)) {
                             return rzslist.parallelStream().max(Comparator.comparing(d -> d)).get();
                         } else {
-                            throw new IllegalArgumentException(String.format("Date类型不支持%s！", st));
+                            throw new IllegalArgumentException(String.format("Date type not supprot %s ; Date类型不支持 %s ;", st));
                         }
                     }
                 } else {
                     return null;
                 }
             } else {
-                throw new IllegalArgumentException("字段必须是Date类型！");
+                throw new IllegalArgumentException("column must Data type ; 字段必须是Date类型 ;");
             }
         } catch (Exception e) {
             throw new IllegalStateException(e);
@@ -1594,7 +1592,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         sb.append(getWhereSqlByParam(pms));
         String sql = sb.toString();
         PreparedStatement prepare = getStatementBySql(isRead, sql);
-        if (this.getConnectionManager().isShowSql()) {
+        if (isShowSql) {
             log.info(sql);
         }
         setWhereSqlParamValue(pms, prepare);

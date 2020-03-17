@@ -4,6 +4,11 @@ package com.mydata.dao.base.impl;
 import com.mydata.manager.IConnectionManager;
 import javax.annotation.Resource;
 
+/**
+ * MyData
+ * @author Liu Tao
+ * @param <POJO>
+ */
 public class MyData<POJO> extends MyDataSupport<POJO> {
 
     private @Resource IConnectionManager connectionManager;
