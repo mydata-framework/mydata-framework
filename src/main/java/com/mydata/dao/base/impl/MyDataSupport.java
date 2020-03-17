@@ -88,7 +88,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     //get domain column field properties
     protected Set<PropInfo> getPropInfos() {
-        //current class may be has more than 1 table for split , may be minimum is 1, then get the first table data info,this the domain column field properties, it's just how it is
+        //current class may be has more than 1 table for split , may be minimum is 1, then get the first table data info,this is domain column field properties, it's just how it is
         Map<String, LinkedHashSet<PropInfo>> tbinfo = ConnectionManager.getTbinfo(this.domainClazz);
         LinkedHashSet<PropInfo> propInfos = tbinfo.entrySet().iterator().next().getValue();
         return propInfos;
@@ -1066,18 +1066,15 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return 0D;
     }
 
-    private List<Future<QueryVo<ResultSet>>> getFunctionValues(Set<Param> pms, String property,
-                                                               StatisticsType functionName) throws SQLException {
+    private List<Future<QueryVo<ResultSet>>> getFunctionValues(Set<Param> pms, String property,StatisticsType functionName) throws SQLException {
         StringBuffer sb = new StringBuffer(KSentences.SELECT.getValue());
         sb.append(functionName);
         for (PropInfo p : getPropInfos()) {
             if (p.getPname().equals(property.trim())) {
-                sb.append(KSentences.LEFT_BRACKETS.getValue()).append(p.getCname())
-                        .append(KSentences.RIGHT_BRACKETS.getValue()).append(KSentences.FROM);
+                sb.append(KSentences.LEFT_BRACKETS.getValue()).append(p.getCname()).append(KSentences.RIGHT_BRACKETS.getValue()).append(KSentences.FROM);
                 break;
             }
         }
-
         Set<String> tbs = getTableNamesByParams(pms);
         List<Future<QueryVo<ResultSet>>> rzts = invokeall(true, pms, sb.toString(), tbs);
         return rzts;
@@ -1105,8 +1102,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
     }
 
-    private List<Future<QueryVo<ResultSet>>> invokeall(boolean isRead, Set<Param> pms, String sqlselect,
-                                                       Set<String> tbs) throws SQLException {
+    private List<Future<QueryVo<ResultSet>>> invokeall(boolean isRead, Set<Param> pms, String sqlselect, Set<String> tbs) throws SQLException {
         Iterator<String> tbnsite = tbs.iterator();
         List<QueryVo<PreparedStatement>> pss = new ArrayList<>();
         String whereSqlByParam = getWhereSqlByParam(pms);
@@ -1266,14 +1262,13 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     .append(havingSql).append(")  ccfd ");
             String sql = sqlsb.toString();
             PreparedStatement statement = getStatementBySql(isRead, sql);
-            if (this.getConnectionManager().isShowSql()) {
-                log.info(sql);
-            }
             int ix = 1;
             for (String tn : tbns) {
                 ix = setWhereSqlParamValue(pms, statement, ix);
             }
             setWhereSqlParamValue(hvcs, statement, ix);
+
+            if (this.isShowSql) { log.error(statement.toString());/*log.info(sql);*/ }
             ResultSet rs = statement.executeQuery();
             if (rs.next()) {
                 return rs.getObject(1, Long.class);
@@ -1306,11 +1301,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public List<Object[]> getGroupPageList(
-            int curPage, int pageSize,
-            Set<Param> pms,
-            LinkedHashSet<OrderBy> orderbys,
-            LinkedHashMap<String, String> funs, String... groupby) {
+    public List<Object[]> getGroupPageList( int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
         return grouplist(true, curPage, pageSize, orderbys, pms, funs, groupby);
     }
 
@@ -1328,18 +1319,18 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 pms = new HashSet<>(pms);
             }
             /**
-             * 分组函数条件
+             * group func condition
              */
             Set<Param> hvcs = gethvconditions(pms);
             /**
-             * where 条件
+             * where condition
              */
             String whereSqlByParam = getWhereSqlByParam(pms);
 
             StringBuilder grpsql = new StringBuilder(KSentences.SELECT.getValue());
             Set<PropInfo> propInfos = getPropInfos();
             /**
-             * 拼接查询函数
+             * append query func
              */
             if (funs != null && funs.size() > 0) {
                 Iterator<Entry<String, String>> enite = funs.entrySet().iterator();
@@ -1354,7 +1345,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 }
             }
             /**
-             * 拼接查询字段
+             * append query column
              */
             for (int i = 0; i < groupby.length; i++) {
                 for (PropInfo p : propInfos) {
@@ -1371,7 +1362,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
             grpsql.append(KSentences.FROM.getValue()).append("(");
             /**
-             * 汇总所有表数据
+             * collect all table data
              */
             Set<String> tbns = getTableNamesByParams(pms);
             /**
@@ -1437,15 +1428,14 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
             String selectPagingSql = getSingleTableSelectPagingSql(grpsql.toString(), curPage, pageSize);
             PreparedStatement statement = getStatementBySql(readOnly, selectPagingSql);
-            if (this.getConnectionManager().isShowSql()) {
-                log.info(selectPagingSql);
-            }
             int ix = 1;
             for (String tn : tbns) {
                 ix = setWhereSqlParamValue(pms, statement, ix);
             }
             setWhereSqlParamValue(hvcs, statement, ix);
-            return getObjectList(statement.executeQuery());
+            if (this.isShowSql) { log.error(statement.toString());/*log.info(selectPagingSql);*/ }
+            ResultSet resultSet = statement.executeQuery();
+            return getObjectList(resultSet);
         } catch (Exception e) {
             e.printStackTrace();
             throw new IllegalStateException(e);
@@ -1456,7 +1446,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private PreparedStatement getStatementBySql(boolean readOnly, String selectPagingSql) throws SQLException {
         PreparedStatement statement = this.getConnectionManager().getConnection(readOnly).prepareStatement(selectPagingSql);
-        // 300秒超时
+        // 300 s timeout
         statement.setQueryTimeout(360);
         return statement;
     }
@@ -1525,15 +1515,16 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return new ArrayList<>(0);
     }
 
-    // 获取主键名称
+    //get primary key name
     private String getPrimaryKeyPname() {
         for (PropInfo fd : getPropInfos()) {
             if (fd.getIsPrimarykey()) {
                 return fd.getPname();
             }
         }
-        throw new IllegalStateException(
-                String.format("%s没有定义主键！！", ConnectionManager.getTbinfo(domainClazz).entrySet().iterator().next().getKey()));
+        String tableName = ConnectionManager.getTbinfo(domainClazz).entrySet().iterator().next().getKey();
+        String err = String.format("%s not has primary key ; %s 没有定义主键 ;", tableName,tableName);
+        throw new IllegalStateException(err);
     }
 
     @Override
@@ -1551,8 +1542,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     protected POJO getObjByid(Boolean isRead, Serializable id, String... strings) {
         if (id != null) {
             try {
-                Entry<String, LinkedHashSet<PropInfo>> tbimp = ConnectionManager.getTbinfo(domainClazz).entrySet().iterator()
-                        .next();
+                Entry<String, LinkedHashSet<PropInfo>> tbimp = ConnectionManager.getTbinfo(domainClazz).entrySet().iterator().next();
                 for (PropInfo fd : tbimp.getValue()) {
                     if (fd.getIsPrimarykey()) {
                         ColumnRule cr = fd.getColumnRule();
@@ -1592,10 +1582,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         sb.append(getWhereSqlByParam(pms));
         String sql = sb.toString();
         PreparedStatement prepare = getStatementBySql(isRead, sql);
-        if (isShowSql) {
-            log.info(sql);
-        }
         setWhereSqlParamValue(pms, prepare);
+        if (this.isShowSql) { log.error(prepare.toString());/*log.info(sql); */}
         ResultSet rs = prepare.executeQuery();
         return getRztObject(rs, strings);
     }
@@ -1647,7 +1635,6 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         if (rzlist.size() == 1) {
             return rzlist.get(0);
         }
-
         return null;
     }
 
@@ -1684,7 +1671,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         int rzc = 0;
         if (pojo != null) {
             try {
-                //持久化
+                //persistence
                 rzc = persist(pojo);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -1695,7 +1682,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return rzc;
     }
-    //持久化
+    //persistence
     protected int persist(POJO pojo) throws IllegalAccessException, SQLException {
         Field[] fields = domainClazz.getDeclaredFields();
         Entry<String, LinkedHashSet<PropInfo>> tbe = ConnectionManager.getTbinfo(domainClazz).entrySet().iterator().next();
@@ -1747,7 +1734,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             return false;
         }
     }
-    //获取切分规则
+    //get table split rule
     private ColumnRule getColumnRule() {
         Field[] fds = domainClazz.getDeclaredFields();
         for (Field fd : fds) {
@@ -1758,15 +1745,14 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return null;
     }
-    //表切分
+    //TODO
+    //table split
     private String tableSharding(POJO pojo, Field[] fds, String name) throws IllegalAccessException, SQLException {
-        //遍历所有字段
+        //foreach all field
         for (Field field : fds) {
-            //获取字段上的表切分朱姐
             ColumnRule columnRule = field.getAnnotation(ColumnRule.class);
-            //如果当前字段存在切分
+            //is has split rule flag
             if (columnRule != null) {
-                //且当前字段内容不为空
                 field.setAccessible(true);
                 if (field.get(pojo) == null) {
                     //循环所有字段的属性内容
@@ -2326,20 +2312,16 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private List<Object> getSingleObject(Boolean isRead, String sql, Set<Param> params) throws SQLException {
         PreparedStatement statement = getStatementBySql(isRead, sql);
-        if (this.getConnectionManager().isShowSql()) {
-            log.info(sql);
-        }
         setWhereSqlParamValue(params, statement);
+        if (this.isShowSql) { log.error(statement.toString());/*log.info(sql);*/ }
         return getRztObject(statement.executeQuery());
     }
 
     private List<POJO> getSingleObject(Boolean isRead, Set<Param> params, String sql, String... strings)
             throws SQLException {
         PreparedStatement statement = getStatementBySql(isRead, sql);
-        if (this.getConnectionManager().isShowSql()) {
-            log.info(sql);
-        }
         setWhereSqlParamValue(params, statement);
+        if (this.isShowSql) { log.error(statement.toString());/*log.info(sql);*/ }
         return getRztObject(statement.executeQuery(), strings);
     }
 

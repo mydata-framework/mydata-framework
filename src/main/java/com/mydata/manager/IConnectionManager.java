@@ -3,86 +3,78 @@ package com.mydata.manager;
 import java.sql.Connection;
 
 /**
- * 数据库连接管理
+ * Connection Manager Intergace
  *
  * @author Liu Tao
  */
 public interface IConnectionManager {
 
     /**
-     * 1 获取连接(主库)
+     * 1 1 get connection (primary db)
      * @return
      */
     Connection getConnection();
 
     /**
-     * 2 获取连接
-     *
-     * @param readOnly 是否只读
+     * 2 get connection from is readOnly param
+     * @param readOnly
      * @return
      */
     Connection getConnection(boolean readOnly);
 
     /**
-     * 3 获取主库连接
-     *
+     * 3 get primary db write connection
      * @return
      */
     Connection getWriteConnection();
 
     /**
-     * 4 获取从库连接
-     *
+     * 4 get read db connection
      * @return
      */
     Connection getReadConnection();
 
     /**
-     * 5 关闭连接
+     * 5 close connection
      */
     void closeConnection();
 
     /**
-     * 6 开启事务
-     *
-     * @return false 已经开启
+     * 6 begin transaction
+     * @return false : is already begin befor
      */
     Boolean beginTransaction(boolean readOnly);
 
     /**
-     * 7 是否已经开启事务
-     *
+     * 7 check transaction is begined
      * @return
      */
     boolean isTransactioning();
 
     /**
-     * 8 是否只读事务
-     *
+     * 8 check transaction is only read transaction
      * @return
      */
     boolean isTransReadOnly();
 
     /**
-     * 9 提交事务
+     * 9 commit transaction
      */
     void commitTransaction();
 
     /**
-     * 10 回滚事务
+     * 10 rollback transaction
      */
     void rollbackTransaction();
 
     /**
-     * 11 是否自动创建表和索引
-     *
+     * 11 check is open ddl
      * @return
      */
     boolean isDdl();
 
     /**
-     * 12 是否控制台打印SQL
-     *
+     * 12 check is show sql
      * @return
      */
     boolean isShowSql();

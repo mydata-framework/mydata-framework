@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 数据库连接管理
+ * Connection Manager
  *
  * @author Liu Tao
  */
@@ -42,7 +42,8 @@ public final class ConnectionManager implements IConnectionManager {
     //read dbs
     private List<DataSource> readDataSources;
 
-    //实体类对应的表名和字段信息列表 key: tableClass value : (key: tableName, value:字段信息s)
+    //domain class mapping table info properties info
+    //key: tableClass value : (key: tableName, value: properties)
     private volatile static ConcurrentHashMap<Class<?>, ConcurrentHashMap<String, LinkedHashSet<PropInfo>>> ENTITY_CACHED = new ConcurrentHashMap<Class<?>, ConcurrentHashMap<String, LinkedHashSet<PropInfo>>>();
 
     private static ThreadLocal<TransactionLocal> transactions = new ThreadLocal<TransactionLocal>() {
@@ -130,15 +131,15 @@ public final class ConnectionManager implements IConnectionManager {
     }
 
     /**
-     * 得到表中字段的信息
-     *
+     * get domains field column properties , key is @Table name, value is every filed properties
+     * current class may be has more than 1 table for split , may be minimum is 1, then get the first table data info,this is domain column field properties, it's just how it is
      * @param domainClass
      * @return
      */
     public static Map<String, LinkedHashSet<PropInfo>> getTbinfo(Class<?> domainClass) {
         ConcurrentHashMap<String, LinkedHashSet<PropInfo>> tableNamePropsMap = ENTITY_CACHED.get(domainClass);
         if (tableNamePropsMap == null) {
-            //表名
+            //table
             Table tableAnnotation = domainClass.getAnnotation(Table.class);
             LinkedHashSet<PropInfo> tableColumnInfos = new LinkedHashSet<PropInfo>();
             String tableName = null;
@@ -148,7 +149,7 @@ public final class ConnectionManager implements IConnectionManager {
                     tableName = domainClass.getSimpleName();
                 }
             }
-            //表公开字段
+            //field column
             Field[] fields = domainClass.getDeclaredFields();
             int versionNum = 0;
             for (Field field : fields) {
@@ -233,9 +234,9 @@ public final class ConnectionManager implements IConnectionManager {
         return tableNamePropsMap;
     }
 
+
     /**
-     * 1 获取连接(主库)
-     *
+     * 1 get connection (primary db)
      * @return
      */
     @Override
@@ -244,9 +245,8 @@ public final class ConnectionManager implements IConnectionManager {
     }
 
     /**
-     * 2 获取连接
-     *
-     * @param readOnly 是否只读
+     * 2 get connection from is readOnly param
+     * @param readOnly
      * @return
      */
     @Override
@@ -257,9 +257,9 @@ public final class ConnectionManager implements IConnectionManager {
         return getWriteConnection();
     }
 
+
     /**
-     * 3 获取主库连接
-     *
+     * 3 get primary db write connection
      * @return
      */
     @Override
@@ -281,8 +281,7 @@ public final class ConnectionManager implements IConnectionManager {
     }
 
     /**
-     * 4 获取从库连接
-     *
+     * 4 get read db connection
      * @return
      */
     @Override
@@ -311,7 +310,7 @@ public final class ConnectionManager implements IConnectionManager {
     }
 
     /**
-     * 5 关闭连接
+     * 5 close connection
      */
     @Override
     public void closeConnection() {
@@ -329,9 +328,8 @@ public final class ConnectionManager implements IConnectionManager {
     }
 
     /**
-     * 6 开启事务
-     *
-     * @return false 已经开启
+     * 6 begin transaction
+     * @return false : is already begin befor
      */
     @Override
     public Boolean beginTransaction(boolean readOnly) {
@@ -356,8 +354,7 @@ public final class ConnectionManager implements IConnectionManager {
     }
 
     /**
-     * 7 是否已经开启事务
-     *
+     * 7 check transaction is begined
      * @return
      */
     @Override
@@ -367,8 +364,7 @@ public final class ConnectionManager implements IConnectionManager {
     }
 
     /**
-     * 8 是否只读事务
-     *
+     * 8 check transaction is only read transaction
      * @return
      */
     @Override
@@ -378,7 +374,7 @@ public final class ConnectionManager implements IConnectionManager {
     }
 
     /**
-     * 9 提交事务
+     * 9 commit transaction
      */
     @Override
     public void commitTransaction() {
@@ -403,7 +399,7 @@ public final class ConnectionManager implements IConnectionManager {
     }
 
     /**
-     * 10 回滚事务
+     * 10 rollback transaction
      */
     @Override
     public void rollbackTransaction() {
@@ -428,8 +424,7 @@ public final class ConnectionManager implements IConnectionManager {
     }
 
     /**
-     * 11 是否自动创建表和索引
-     *
+     * 11 check is open ddl
      * @return
      */
     @Override
@@ -438,7 +433,7 @@ public final class ConnectionManager implements IConnectionManager {
     }
 
     /**
-     * 12 是否控制台打印SQL
+     * 12 check is show sql
      * @return
      */
     @Override
