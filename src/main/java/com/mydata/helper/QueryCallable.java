@@ -17,7 +17,6 @@ public class QueryCallable implements Callable<QueryVo<ResultSet>> {
     public QueryVo<ResultSet> call() throws Exception {
         ResultSet rs = statement.executeQuery();
         return new QueryVo<ResultSet>(tbn, rs);
-
     }
 
     public QueryCallable(PreparedStatement statement, String tbn) {

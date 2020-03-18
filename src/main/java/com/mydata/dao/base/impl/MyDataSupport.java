@@ -1745,38 +1745,38 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return null;
     }
-    //TODO
     //table split
     private String tableSharding(POJO pojo, Field[] fds, String name) throws IllegalAccessException, SQLException {
+        //has split rule flag field , and primary key use TABLE flag
+
         //foreach all field
         for (Field field : fds) {
             ColumnRule columnRule = field.getAnnotation(ColumnRule.class);
-            //is has split rule flag
+            //is has split rule flag field
             if (columnRule != null) {
                 field.setAccessible(true);
                 if (field.get(pojo) == null) {
-                    //循环所有字段的属性内容
-                    for (PropInfo propInfo : getPropInfos()) {
-                        //如果字段与字段属性内容匹配上
-                        if (paired(propInfo, field)) {
-                            //那么字段是否是主键
+                    for (PropInfo propInfo : this.getPropInfos()) {
+                        //if this field with properties paired is true
+                        if (this.fieldPropertiesPaired(propInfo, field)) {
+                            //if is primary key
                             if (propInfo.getIsPrimarykey()) {
-                                //是否被@GenerationType修饰,并且值是TABLE,并且是Mysq数据库
+                                //if @GenerationType use TABLE and database is mysql
                                 if (
                                         GenerationType.TABLE.equals(propInfo.getGeneratorValueAnnoStrategyVal())
                                             &&
                                         "MySQL".equalsIgnoreCase(this.dataBaseTypeName)
                                 ) {
-                                    //获取下一个全局id
-                                    //设置主键id为全局id
+                                    //then , get the next global id , this id is for domain
                                     Long nextId = getNextIdFromIdTable(this.getConnectionManager().getConnection());
                                     field.set(pojo, nextId);
                                 } else if (
-                                        autoNextVal(propInfo)
+                                        //if @GenerationType use AUTO or SEQUENCE,  and database is oracle
+                                        this.autoNextVal(propInfo)
                                             &&
                                         "Oracle".equalsIgnoreCase(this.dataBaseTypeName)
                                 ) {
-                                    //设置Oracle全局id到当前主键
+                                    //then , get the next global id , this id is for domain
                                     Long nextId = getNextVal(this.getConnectionManager().getConnection());
                                     field.set(pojo, nextId);
                                 } else {
@@ -1787,16 +1787,18 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                             }
                         }
                     }
-                    //如果全部循环匹配没有主键,抛出错误
+                    //if want split , but not has primary key , throw err info
                     if (field.get(pojo) == null) {
-                        throw new IllegalArgumentException(String.format("%s切分字段数据不能为空！！", field.getName()));
+                        String err = String.format("%s split flag field not be null ; %s 切分字段不能为空 ;", field.getName(),field.getName());
+                        throw new IllegalArgumentException(err);
                     }
                 }
-                //当前字段带有切分规则,通过当前字段,当前字段类型,切分规则,获取表的下标
+                //current field has split flag , get table index   by current field type and split rule
                 long max = getTableMaxIdx(field.get(pojo), field.getType(), columnRule);
                 Set<String> currentTables = getCurrentTables();
                 if (currentTables.size()>= maxTableCount) {
-                    throw new IllegalStateException(String.format("超出了表拆分最大数量，最多只能拆分%s个表", maxTableCount));
+                    String err = String.format("out of range for split table max num %s ; 超出了表拆分最大数量 , 最多只能拆分%s个表", maxTableCount,maxTableCount);
+                    throw new IllegalStateException(err);
                 }
                 String ctbname = getTableName(max, name);
                 if (!isExistTable(ctbname)) {
@@ -1815,7 +1817,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return name;
     }
-    //获取表的下标
+    //get table index   by current field type and split rule
     private long getTableMaxIdx(Object fieldObject, Class<?> fieldType, ColumnRule cr) {
         long max = 0;
         if (fieldType == Long.class) {
@@ -1857,18 +1859,20 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             max = getTbIdx(dt.toLocalDate().toEpochDay(), cr);
 
         } else {
-            throw new IllegalStateException(String.format("%s类型不能用来对数据进行切分，请使用int、long、string、date类型的字段", fieldType));
+            String err = String.format("%s not support for split , must be int long string or date type ; %s类型不能用来对数据进行切分，请使用int、long、string、date类型的字段", fieldType,fieldType);
+            throw new IllegalStateException(err);
         }
         return max;
     }
-    private static long getTbIdx(long tv, ColumnRule crn) {
 
+    private static long getTbIdx(long tv, ColumnRule crn) {
         if (crn.ruleType().equals(RuleType.RANGE)) {
             return tv / crn.value();
         } else {
             return tv % crn.value();
         }
     }
+
     private void executeCreate(String name, String ctbname) throws SQLException {
         reFreshTables();
         if (!isExistTable(ctbname)) {
@@ -1893,7 +1897,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 return field;
             }
         }
-        throw new IllegalStateException(String.format("%s没有定义主键！！", tbe.getKey()));
+        String table = tbe.getKey();
+        String err = String.format("%s not has primary key field ; %s 没有定义主键 ;", table,table);
+        throw new IllegalStateException(err);
     }
 
     private final static Object FIRST_TABLECREATE = new Object();
@@ -1919,12 +1925,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             for (String tn : tbns) {
                 String sql = KSentences.DELETE_FROM.getValue() + tn + whereSqlByParam;
                 PreparedStatement statement = getStatementBySql(false, sql);
-                if (this.getConnectionManager().isShowSql()) {
-                    log.info(sql);
-                }
                 setWhereSqlParamValue(pms, statement);
+                if (this.isShowSql) { log.error(statement.toString());/*log.info(sql);*/ }
                 ttc += statement.executeUpdate();
-
             }
             return ttc;
         } catch (Exception e) {
@@ -1935,8 +1938,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
     }
 
-    //配对
-    private static boolean paired(PropInfo propInfo, Field field) {
+    //field with properties paired
+    private static boolean fieldPropertiesPaired(PropInfo propInfo, Field field) {
         Column clm = field.getAnnotation(Column.class);
         if (clm == null || clm.name().trim().length() < 1) {
             if (propInfo.getCname().equalsIgnoreCase(field.getName())) {
@@ -1954,7 +1957,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         for (PropInfo zd : clset) {
             idx = idx + 1;
             for (Field fd : fds) {
-                if (paired(zd, fd)) {
+                if (fieldPropertiesPaired(zd, fd)) {
                     setParameter(pojo, statement, conn, idx, zd, fd);
                     break;
                 }
@@ -1980,8 +1983,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
         } else {
             if (vl == null && propInfo.getIsPrimarykey()) {
-                if (GenerationType.TABLE.equals(propInfo.getGeneratorValueAnnoStrategyVal())
-                        && "MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
+                if (GenerationType.TABLE.equals(propInfo.getGeneratorValueAnnoStrategyVal()) && "MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
                     Long nextId = getNextIdFromIdTable(conn);
                     statement.setObject(index, nextId);
                     field.set(pojo, nextId);
@@ -2003,8 +2005,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                             field.setAccessible(true);
                             field.set(pojo,vl);
                         } catch (Exception e) {
-                            String error = "Set New Value To @Version Type Error!";
-                            log.error(error);
+                            String error = "set new value to @Version type error";
                             throw new IllegalArgumentException(error);
                         }
                     }
@@ -2014,7 +2015,6 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
 
     }
-
     //get field obj
     private Object getPropValue(POJO pojo, Field fd) {
         try {
@@ -2029,14 +2029,14 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private Long getNextVal(Connection conn) throws SQLException {
         String seqName = getSequenceName(this.firstTableName);
-        ResultSet rs = conn.prepareStatement(String.format("select  %s.%s   from  dual", seqName, "nextval")).executeQuery();
+        ResultSet rs = conn.prepareStatement(String.format("SELECT  %s.%s   FROM  dual", seqName, "nextval")).executeQuery();
         if (rs.next()) {
             return rs.getLong(1);
         }
         return null;
     }
 
-    //获取全局id表的下一个id
+    //get next global table id
     private Long getNextIdFromIdTable(Connection conn) throws SQLException {
         String idTableName = getIdTableName(this.firstTableName);
         String insertIdtable = genInsertIdTableSql(idTableName, "NULL");
@@ -2069,9 +2069,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return getRztPos(property, params, false, isDistinct);
     }
 
-    // 单个字段值列表
+    //query get single value list
     private List<Object> getRztPos(String property, Set<Param> params, boolean isRead, boolean isDistinct) {
-
         if (getCurrentTables().size() < 1) {
             return new ArrayList<>(0);
         }
@@ -2083,7 +2082,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 return getSingleObject(isRead, selectpre + tbns.iterator().next() + whereSqlByParam, params);
             } else {
                 List<QueryVo<PreparedStatement>> pss = getqvs(isRead, params, selectpre, whereSqlByParam, tbns);
-                return querylist(pss);
+                List<Object> querylist = this.querylist(pss);
+                return querylist;
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -2094,7 +2094,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     }
 
-    /// 实体对象列表
+    //query get pojo list
     private List<POJO> getRztPos(boolean isDistinct, boolean isRead, Set<Param> params, String... strings) {
         if (getCurrentTables().size() < 1) {
             return new ArrayList<>(0);
@@ -2106,8 +2106,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             if (tbns.size() == 1) {
                 return getSingleObject(isRead, params, selectpre + tbns.iterator().next() + whereSqlByParam, strings);
             } else {
-                List<QueryVo<PreparedStatement>> pss = getqvs(isRead, params, selectpre, whereSqlByParam, tbns);
-                return querylist(pss, strings);
+                List<QueryVo<PreparedStatement>> pss = this.getqvs(isRead, params, selectpre, whereSqlByParam, tbns);
+                List<POJO> querylist = this.querylist(pss, strings);
+                return querylist;
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -2117,16 +2118,13 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
     }
 
-    private List<QueryVo<PreparedStatement>> getqvs(boolean isRead, Set<Param> params, String selectpre,
-                                                    String whereSqlByParam, Set<String> tbns) throws SQLException {
+    private List<QueryVo<PreparedStatement>> getqvs(boolean isRead, Set<Param> params, String selectpre, String whereSqlByParam, Set<String> tbns) throws SQLException {
         List<QueryVo<PreparedStatement>> pss = new ArrayList<>();
         for (String tn : tbns) {
             String sql = selectpre + tn + whereSqlByParam;
             PreparedStatement statement = getStatementBySql(isRead, sql);
-            if (this.getConnectionManager().isShowSql()) {
-                log.info(sql);
-            }
             setWhereSqlParamValue(params, statement);
+            if (this.isShowSql){log.error(statement.toString());}//if (this.isShowSql) { log.info(sql); }
             pss.add(new QueryVo<PreparedStatement>(tn, statement));
         }
         return pss;
@@ -2134,10 +2132,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public PageData<POJO> getPageInfo(int curPage, int pageSize, Set<Param> params, LinkedHashSet<OrderBy> orderbys,String... strings) {
-        Long count = getCount(params);
+        Long count = this.getCount(params);
         if (count > 0) {
-            return new PageData<>(curPage, pageSize, count,
-                    getRztPos(true, curPage, pageSize, orderbys, params, strings));
+            return new PageData<>(curPage, pageSize, count, getRztPos(true, curPage, pageSize, orderbys, params, strings));
         } else {
             return new PageData<>(curPage, pageSize, count, new ArrayList<>(0));
         }
@@ -2147,124 +2144,76 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     public PageData<POJO> getPageInfoFromMaster(int curPage, int pageSize,Set<Param> params, LinkedHashSet<OrderBy> orderbys,String... strings) {
         Long count = getCountFromMaster(params);
         if (count > 0) {
-            return new PageData<>(curPage, pageSize, count,
-                    getRztPos(false, curPage, pageSize, orderbys, params, strings));
+            return new PageData<>(curPage, pageSize, count, getRztPos(false, curPage, pageSize, orderbys, params, strings));
         } else {
             return new PageData<>(curPage, pageSize, count, new ArrayList<>(0));
         }
     }
 
-    /***
-     * 多表分页
-     *
-     * @param sql
-     * @param curPage
-     * @param pageSize
-     * @return
-     */
+    //more table page query
     private String getSelectPagingSql(String sql, int curPage, int pageSize) {
-        try {
-            String dpname = this.getConnectionManager().getConnection(true).getMetaData().getDatabaseProductName();
-            if (dpname.equalsIgnoreCase("MySQL")) {
-                return sql + getPagingSql(curPage, pageSize);
-            } else if (dpname.equalsIgnoreCase("Oracle")) {
-                StringBuilder sb = new StringBuilder("select  row_.*,   rownum  rownum_      from (");
-                sb.append(sql);
-                sb.append(")  row_  where    rownum <=");
-                sb.append(curPage * pageSize);
-                return sb.toString();
-            }
-            throw new IllegalStateException(String.format("当前查询分页路由不支持%s数据库系统", dpname));
-        } catch (SQLException e) {
-            e.printStackTrace();
-            throw new IllegalStateException("无法获取数据库名称");
+        if (this.dataBaseTypeName.equalsIgnoreCase("MySQL")) {
+            return sql + getPagingSql(curPage, pageSize);
+        } else if (this.dataBaseTypeName.equalsIgnoreCase("Oracle")) {
+            StringBuilder sb = new StringBuilder("select  row_.*,   rownum  rownum_      from (");
+            sb.append(sql);
+            sb.append(")  row_  where    rownum <=");
+            sb.append(curPage * pageSize);
+            return sb.toString();
+        }else {
+            String err = String.format("current page router not support %s database ; 当前查询分页路由不支持%s数据库系统 ;", this.dataBaseTypeName,this.dataBaseTypeName);
+            throw new IllegalStateException(err);
         }
-
     }
 
-    /**
-     * 单表分页
-     *
-     * @param sql
-     * @param curPage
-     * @param pageSize
-     * @return
-     */
+    //single table page query
     private String getSingleTableSelectPagingSql(String sql, int curPage, int pageSize) {
-        try {
-            String dpname = this.getConnectionManager().getConnection(true).getMetaData().getDatabaseProductName();
-            if (dpname.equalsIgnoreCase("MySQL")) {
-                return sql + getSingleTablePagingSql(curPage, pageSize);
-            } else if (dpname.equalsIgnoreCase("Oracle")) {
-                return oraclepageselect(sql, curPage, pageSize);
-            }
-            throw new IllegalStateException(String.format("当前查询分页路由不支持：%s数据库系统", dpname));
-        } catch (SQLException e) {
-            e.printStackTrace();
-            throw new IllegalStateException("无法获取数据库名称");
+        if (this.dataBaseTypeName.equalsIgnoreCase("MySQL")) {
+            return sql + getSingleTablePagingSql(curPage, pageSize);
+        } else if (this.dataBaseTypeName.equalsIgnoreCase("Oracle")) {
+            return oraclepageselect(sql, curPage, pageSize);
         }
-
+        String err = String.format("current page router not support %s database ; 当前查询分页路由不支持%s数据库系统 ;", this.dataBaseTypeName,this.dataBaseTypeName);
+        throw new IllegalStateException(err);
     }
 
     private String getSingleTableSelectPagingSqlByStartIndex(int start, String sql, int pageSize) {
-
-        try {
-            String dpname = this.getConnectionManager().getConnection(true).getMetaData().getDatabaseProductName();
-            if (dpname.equalsIgnoreCase("MySQL")) {
-                return sql + getSinglePagingSql(start, pageSize);
-            } else if (dpname.equalsIgnoreCase("Oracle")) {
-                return getoracleSinglepagingSelectsql(start, sql, pageSize);
-            }
-            throw new IllegalStateException(String.format("当前查询分页路由不支持：%s数据库系统", dpname));
-        } catch (SQLException e) {
-            e.printStackTrace();
-            throw new IllegalStateException("无法获取数据库名称");
+        if (this.dataBaseTypeName.equalsIgnoreCase("MySQL")) {
+            return sql + getSinglePagingSql(start, pageSize);
+        } else if (this.dataBaseTypeName.equalsIgnoreCase("Oracle")) {
+            return getoracleSinglepagingSelectsql(start, sql, pageSize);
         }
-
+        String err = String.format("current page router not support %s database ; 当前查询分页路由不支持%s数据库系统 ;", this.dataBaseTypeName, this.dataBaseTypeName);
+        throw new IllegalStateException(err);
     }
 
-    /**
-     * Oracle
-     *
-     * @param sql
-     * @param curPage  当前页
-     * @param pageSize 每页显示多少条记录
-     * @return
-     */
+    //oracle page query
     private String oraclepageselect(String sql, int curPage, int pageSize) {
         StringBuilder sb = new StringBuilder(
-                "select   *      from        ( select  row_.*,   rownum  rownum_      from (");
+                "SELECT * FROM ( select row_.*, rownum rownum_ from (");
         sb.append(sql);
-        sb.append(")  row_  where    rownum <=");
+        sb.append(") row_ where rownum <=");
         sb.append(curPage * pageSize);
-        sb.append(" )   where  rownum_ > ").append((curPage - 1) * pageSize);
+        sb.append(" ) WHERE rownum_ > ").append((curPage - 1) * pageSize);
         return sb.toString();
     }
 
-    /**
-     * Oracle
-     *
-     * @param start    开始位置
-     * @param sql
-     * @param pageSize 获取多少条记录
-     * @return
-     */
+    //oracle single page query
     private String getoracleSinglepagingSelectsql(int start, String sql, int pageSize) {
         if (start < 0 || pageSize < 1) {
-            throw new IllegalArgumentException("当开始位置不能小于0或者页大小不能小于1");
+            throw new IllegalArgumentException("start can not lt 0 , page size can not lt 1 ; 开始位置不能小于0,页大小不能小于1 ;");
         }
         StringBuilder sb = new StringBuilder(
-                "select   *      from        ( select  row_.*,   rownum  rownum_      from (");
+                "SELECT * FROM ( select  row_.*, rownum rownum_ from (");
         sb.append(sql);
-        sb.append(")  row_  where    rownum <=");
+        sb.append(") row_ where rownum <=");
         sb.append(start + pageSize);
-        sb.append(" )   where  rownum_ > ").append(start);
+        sb.append(" ) WHERE rownum_ > ").append(start);
         return sb.toString();
 
     }
 
-    private List<POJO> getRztPos(Boolean isRead, int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys,
-                                 Set<Param> params, String... strings) {
+    private List<POJO> getRztPos(Boolean isRead, int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> params, String... strings) {
         if (curPage < 1 || pageSize < 1 || getCurrentTables().size() < 1) {
             return new ArrayList<>(0);
         }
@@ -2277,22 +2226,16 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 String whereSqlByParam = getWhereSqlByParam(params);
                 String orderBySql = getOrderBySql(orderbys);
                 if (tbns.size() == 1) {
-                    String sql = getSingleTableSelectPagingSql(
-                            selectpre + tbns.iterator().next() + whereSqlByParam + orderBySql, curPage, pageSize);
+                    String sql = getSingleTableSelectPagingSql(selectpre + tbns.iterator().next() + whereSqlByParam + orderBySql, curPage, pageSize);
                     return getSingleObject(isRead, params, sql, strings);
                 } else {
                     List<QueryVo<PreparedStatement>> pss = new ArrayList<>();
                     for (String tn : tbns) {
-                        String sql = getSelectPagingSql(selectpre + tn + whereSqlByParam + orderBySql, curPage,
-                                pageSize);
+                        String sql = getSelectPagingSql(selectpre + tn + whereSqlByParam + orderBySql, curPage,pageSize);
                         PreparedStatement statement = getStatementBySql(isRead, sql);
-                        if (this.getConnectionManager().isShowSql()) {
-                            log.info(sql);
-                        }
                         setWhereSqlParamValue(params, statement);
                         pss.add(new QueryVo<PreparedStatement>(tn, statement));
                     }
-
                     List<POJO> querylist = querylist(pss, strings);
                     if (querylist.size() > 1) {
                         return getOrderbyPagelist(curPage, pageSize, querylist, addsortinfo(orderbys, strings));
@@ -2317,29 +2260,15 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return getRztObject(statement.executeQuery());
     }
 
-    private List<POJO> getSingleObject(Boolean isRead, Set<Param> params, String sql, String... strings)
-            throws SQLException {
+    private List<POJO> getSingleObject(Boolean isRead, Set<Param> params, String sql, String... strings) throws SQLException {
         PreparedStatement statement = getStatementBySql(isRead, sql);
         setWhereSqlParamValue(params, statement);
         if (this.isShowSql) { log.error(statement.toString());/*log.info(sql);*/ }
         return getRztObject(statement.executeQuery(), strings);
     }
 
-    /**
-     * 不排序分页列表
-     *
-     * @param isRead
-     * @param curPage
-     * @param pageSize
-     * @param params
-     * @param strings
-     * @return
-     * @throws SQLException
-     * @throws InterruptedException
-     * @throws ExecutionException
-     */
-    private PageData<POJO> getListFromNotSorted(Boolean isRead, int curPage, int pageSize, Set<Param> params,
-                                                String... strings) {
+    //not sort page query
+    private PageData<POJO> getListFromNotSorted(Boolean isRead, int curPage, int pageSize, Set<Param> params, String... strings) {
         if (this.getConnectionManager().isShowSql()) {
             log.info("begin........................................");
         }
@@ -2353,23 +2282,23 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             if (totalCount < 1) {
                 return new PageData<>(curPage, pageSize, totalCount, new ArrayList<>(0));
             }
-            // 开始位置
+            //start pos
             int start = getPageStartIndex(curPage, pageSize);
-            // 当前所有查到的最大位置
+            //current query max pos
             int csum = 0;
-            // 当前已经可以查到的数据量
+            //current query count
             int rdsum = 0;
             for (QueryVo<Long> q : qvs) {
                 csum += q.getOv();
                 if (rdsum < pageSize) {
                     if (csum > start) {
-                        // 当前 表开始位置
+                        //current table begin pos
                         int startindex = 0;
-                        // 还剩多少数据需要查询
+                        //sur how mach data nedd query
                         int left = pageSize - rdsum;
                         int initSize = q.getOv().intValue() > left ? left : q.getOv().intValue();
                         if (start > 0) {
-                            // 当前表查询剩余多少记录
+                            //current table sur how math data
                             int step = csum - start;
                             if (step < q.getOv().intValue()) {
                                 startindex = q.getOv().intValue() - step;
@@ -2379,13 +2308,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                             }
                         }
                         rdsum += initSize;
-                        String sql = getSingleTableSelectPagingSqlByStartIndex(startindex,
-                                selectpre + q.getTbn() + whereSqlByParam, initSize);
+                        String sql = getSingleTableSelectPagingSqlByStartIndex(startindex, selectpre + q.getTbn() + whereSqlByParam, initSize);
                         PreparedStatement statement = getStatementBySql(isRead, sql);
-                        if (this.getConnectionManager().isShowSql()) {
-                            log.info(sql);
-                        }
                         setWhereSqlParamValue(params, statement);
+                        if (this.isShowSql) { log.error(statement.toString()); /*log.info(sql); */}
                         pss.add(new QueryVo<PreparedStatement>(q.getTbn(), statement));
                     }
                 } else {
@@ -2405,13 +2331,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     }
 
-    /**
-     * 开始位置
-     *
-     * @param curPage
-     * @param pageSize
-     * @return
-     */
+    //get start pos index
     private int getPageStartIndex(int curPage, int pageSize) {
         int start = (curPage - 1) * pageSize;
         return start;
@@ -2441,7 +2361,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
     }
 
-    /// 获取总记录数
+    //get total count
     private Long getCountPerTable(Boolean isRead, Set<Param> params, String... distincts) {
         try {
             Set<String> tbs = getTableNamesByParams(params);
@@ -2472,14 +2392,11 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 } else {
                     sb.append("*");
                 }
-                sb.append(KSentences.RIGHT_BRACKETS.getValue()).append(KSentences.FROM.getValue())
-                        .append(tbs.iterator().next());
+                sb.append(KSentences.RIGHT_BRACKETS.getValue()).append(KSentences.FROM.getValue()).append(tbs.iterator().next());
                 sb.append(getWhereSqlByParam(params));
                 String sql = sb.toString();
-                if (this.getConnectionManager().isShowSql()) {
-                    log.info(sql);
-                }
                 PreparedStatement statement = getPreParedStatement(isRead, params, sql);
+                if (this.isShowSql) { log.error(statement.toString());/*log.info(sql);*/ }
                 ResultSet rs = statement.executeQuery();
                 if (rs.next()) {
                     return rs.getLong(1);
@@ -2508,14 +2425,14 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         Long oldVersion = null;
         for (PropInfo propInfo : propInfos) {
             for (Field field : fds) {
-                if (paired(propInfo, field)) {
+                if (fieldPropertiesPaired(propInfo, field)) {
                     Object propValue = getPropValue(po, field);
                     if (propInfo.getPname().equals(primaryKeyName)) {
                         if (propValue != null) {
                             id = propValue;
                             pms.add(new Param(propInfo.getPname(), Operate.EQ, id));
                         } else {
-                            throw new IllegalArgumentException("主键的值不能为空！");
+                            throw new IllegalArgumentException("primary key not null ; 主键的值不能为空 ;");
                         }
                     }
                     else if (propInfo.getVersion()) {
@@ -2532,8 +2449,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                             field.setAccessible(true);
                             field.set(po,newVersion);
                         } catch (Exception e) {
-                            String error = "Set New Value To @Version Type Error!";
-                            log.error(error);
+                            String error = "set new value to @Version type error";
                             throw new IllegalArgumentException(error);
                         }
                     }
@@ -2568,15 +2484,18 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
                     String sql = buf.toString();
                     PreparedStatement statement = getStatementBySql(false, sql);
-                    if (this.getConnectionManager().isShowSql()&&!isShowSqled) {
-                        isShowSqled = true;
-                        log.info(sql);
-                        Set<Entry<String, Object>> entrySet = newValues.entrySet();
-                        for (Entry<String, Object> entry : entrySet) {
-                            if (entry.getValue() != null) {
-                                log.info("param("+entry.getKey()+")"+"="+entry.getValue().toString());
-                            }
-                        }
+//                    if (this.getConnectionManager().isShowSql()&&!isShowSqled) {
+//                        isShowSqled = true;
+//                        log.info(sql);
+//                        Set<Entry<String, Object>> entrySet = newValues.entrySet();
+//                        for (Entry<String, Object> entry : entrySet) {
+//                            if (entry.getValue() != null) {
+//                                log.info("param("+entry.getKey()+")"+"="+entry.getValue().toString());
+//                            }
+//                        }
+//                    }
+                    if (this.isShowSql) {
+                        log.error(statement.toString());
                     }
                     int i = setUpdateNewValues(newValues, statement);
                     setWhereSqlParamValue(pms, statement, i);
@@ -2681,32 +2600,20 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return sb.toString();
     }
 
-    /**
-     * 多表分页
-     *
-     * @param curPage
-     * @param pageSize
-     * @return
-     */
+    //more table page query
     private String getPagingSql(int curPage, int pageSize) {
         if (curPage < 1 || pageSize < 1) {
-            throw new IllegalArgumentException("当前页和页大小不能小于0");
+            throw new IllegalArgumentException("current page num and view num not lt 0 ; 当前页和页大小不能小于0 ;");
         }
         StringBuilder sb = new StringBuilder(KSentences.LIMIT.getValue());
         sb.append(curPage * pageSize);
         return sb.toString();
     }
 
-    /**
-     * 单表分页
-     *
-     * @param curPage
-     * @param pageSize
-     * @return
-     */
+    //single table page query
     private String getSingleTablePagingSql(int curPage, int pageSize) {
         if (curPage < 1 || pageSize < 1) {
-            throw new IllegalArgumentException("当前页和页大小不能小于0");
+            throw new IllegalArgumentException("current page num and view num not lt 0 ; 当前页和页大小不能小于0 ;");
         }
         StringBuilder sb = new StringBuilder(KSentences.LIMIT.getValue());
         sb.append((curPage - 1) * pageSize);
@@ -2714,16 +2621,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return sb.toString();
     }
 
-    /**
-     * 不排序分页查询
-     *
-     * @param start    开始位置
-     * @param pageSize 获取多少条数据
-     * @return
-     */
+    //not sort page query
     private String getSinglePagingSql(int start, int pageSize) {
         if (start < 0 || pageSize < 1) {
-            throw new IllegalArgumentException("当开始位置不能小于0或者页大小不能小于1");
+            throw new IllegalArgumentException("start can not lt 0 , page size can not lt 1 ; 开始位置不能小于0,页大小不能小于1 ;");
         }
         StringBuilder sb = new StringBuilder(KSentences.LIMIT.getValue());
         sb.append(start);
@@ -2731,8 +2632,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return sb.toString();
     }
 
-    private List<Object> querylist(List<QueryVo<PreparedStatement>> pss)
-            throws InterruptedException, ExecutionException {
+    private List<Object> querylist(List<QueryVo<PreparedStatement>> pss) throws InterruptedException, ExecutionException {
         if (pss != null && pss.size() > 0) {
             List<Future<QueryVo<ResultSet>>> rzs = invokeQueryAll(pss);
             List<Object> pos = new ArrayList<>();
@@ -2745,13 +2645,11 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
     }
 
-    private List<POJO> querylist(List<QueryVo<PreparedStatement>> pss, String... strings)
-            throws InterruptedException, ExecutionException {
+    private List<POJO> querylist(List<QueryVo<PreparedStatement>> pss, String... strings) throws InterruptedException, ExecutionException {
         if (pss != null && pss.size() > 0) {
             List<Future<QueryVo<ResultSet>>> rzs = invokeQueryAll(pss);
             List<POJO> pos = new ArrayList<>();
             for (Future<QueryVo<ResultSet>> f : rzs) {
-
                 try {
                     pos.addAll(getRztObject(f.get().getOv(), strings));
                 } catch (Exception e) {
@@ -2780,10 +2678,11 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private List<Future<QueryVo<ResultSet>>> invokeQueryAll(List<QueryVo<PreparedStatement>> pss) {
         List<QueryCallable> qcs = new ArrayList<>();
         for (QueryVo<PreparedStatement> ps : pss) {
-            qcs.add(new QueryCallable(ps.getOv(), ps.getTbn()));
-            if (this.getConnectionManager().isShowSql()) {
-                log.error(ps.getOv().toString());
+            PreparedStatement preparedStatement = ps.getOv();
+            if (this.isShowSql) {
+                log.error(preparedStatement.toString());
             }
+            qcs.add(new QueryCallable(preparedStatement, ps.getTbn()));
         }
         try {
             return NEW_FIXED_THREAD_POOL.invokeAll(qcs);
@@ -2860,11 +2759,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return objectv;
     }
 
-    /**
-     * 设置查询条件
-     *
-     * @param pms
-     */
+    //seeting query param
     protected String getWhereSqlByParam(Set<Param> pms) {
         StringBuilder sb = new StringBuilder();
         if (pms != null && pms.size() > 0) {
@@ -2874,7 +2769,6 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return sb.toString();
     }
 
-    //TODO
     private void geneConditionSql(Set<Param> pms, StringBuilder sb) {
         Iterator<Param> pmsite = pms.iterator();
         while (pmsite.hasNext()) {
@@ -2926,7 +2820,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             if (pm.getValue() != null && !pm.getValue().toString().trim().equals("")) {
                 sb.append(pm.getOperators().getValue()).append(pm.getValue());
             } else {
-                throw new IllegalArgumentException("非法的条件查询：CdType.OG类型的条件值不能为空");
+                throw new IllegalArgumentException("CdType.OG type param can not bank ; 非法的条件查询,CdType.OG类型的条件值不能为空 ;");
             }
         }
     }
@@ -2934,8 +2828,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private void setvlcds(StringBuilder sb, Param pm, PropInfo p) {
         if (pm.getOperators().equals(Operate.BETWEEN)) {
             if (pm.getFirstValue() == null || pm.getValue() == null) {
-                throw new IllegalArgumentException(
-                        String.format("%s BETWEEN param   value   is not  null  ! ", pm.getPname()));
+                throw new IllegalArgumentException( String.format("%s BETWEEN param value is not null  ! ", pm.getPname()));
             }
             setcName(sb, pm, p);
             sb.append(pm.getOperators().getValue());
@@ -2945,8 +2838,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
         } else if (pm.getOperators().equals(Operate.IN) || pm.getOperators().equals(Operate.NOT_IN)) {
             if (pm.getInValue() == null || pm.getInValue().size() < 1) {
-                throw new IllegalArgumentException(
-                        String.format("%s IN param list value size is not zero or null! ", pm.getPname()));
+                throw new IllegalArgumentException( String.format("%s IN param list value size is not zero or null! ", pm.getPname()));
             }
             setcName(sb, pm, p);
             sb.append(pm.getOperators().getValue());
@@ -2985,8 +2877,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     sb.append(")");
                 }
             } else {
-                throw new IllegalArgumentException(
-                        String.format("%s %s  param  value  is not null ! ", domainClazz.getSimpleName(), pm.getPname()));
+                throw new IllegalArgumentException( String.format("%s %s  param  value  is not null ! ", domainClazz.getSimpleName(), pm.getPname()));
             }
         }
     }
@@ -2997,7 +2888,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 return p.getType();
             }
         }
-        throw new IllegalArgumentException(String.format("%s字段没有定义...", pm.getPname()));
+        throw new IllegalArgumentException(String.format("% field not definition ; %s字段没有定义 ;", pm.getPname(),pm.getPname()));
     }
 
     private void setcName(StringBuilder sb, Param pm, PropInfo p) {
@@ -3081,23 +2972,13 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return null;
     }
 
-    /**
-     * 给查询条件赋值
-     *
-     * @param pms
-     * @param statement
-     */
+    //setting where for statement
     protected void setWhereSqlParamValue(Set<Param> pms, PreparedStatement statement) {
         setWhereSqlParamValue(pms, statement, 1);
 
     }
 
-    /**
-     * 根据条件得到数据所在的表
-     *
-     * @param pms
-     * @return
-     */
+    //get table from param ; 根据条件得到数据所在的表
     protected Set<String> getTableNamesByParams(Set<Param> pms) {
         if (pms != null && pms.size() > 0) {
             Entry<String, LinkedHashSet<PropInfo>> tbimp = ConnectionManager.getTbinfo(domainClazz).entrySet().iterator()
@@ -3196,10 +3077,6 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return false;
     }
 
-
-
-
-
     private StringBuilder getSelectSql(String tableName, String... strings) {
         StringBuilder sb = new StringBuilder(getPreSelectSql(false, strings));
         sb.append(tableName);
@@ -3243,12 +3120,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return rz.toArray(new String[0]);
     }
 
-    /**
-     * 判断表是否已经被创建
-     *
-     * @param tblname
-     * @return
-     */
+    //check table is created , is exist
     private boolean isExistTable(String tblname) {
         Set<String> tbns = getCurrentTables();
         for (String tn : tbns) {
@@ -3263,16 +3135,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return false;
     }
 
-
-
-
-
     @Override
     public void refreshCurrentTables() {
         reFreshTables();
     }
-
-
 
     private boolean autoNextVal(PropInfo p) {
         return GenerationType.AUTO.equals(p.getGeneratorValueAnnoStrategyVal()) || GenerationType.SEQUENCE.equals(p.getGeneratorValueAnnoStrategyVal());
@@ -3290,7 +3156,6 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private String getPrecisionDatatype(String className) {
-
         if ("MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
             return className;
         } else if ("Oracle".equalsIgnoreCase(this.dataBaseTypeName)) {
@@ -3313,7 +3178,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private String getSequenceName(String tableName) {
-        // 序列名称一定要大写
+        //序列名称一定要大写
         String seqName = String.format("%s_%s", tableName, "SEQ").toUpperCase();
         return seqName;
     }
@@ -3361,7 +3226,6 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 }
             }
         }
-
         return sbd.toString();
     }
 
@@ -3374,6 +3238,5 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     protected void setMaxTableCount(int maxTableCount) {
         this.maxTableCount = maxTableCount;
     }
-
 
 }
