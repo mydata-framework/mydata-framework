@@ -2494,11 +2494,11 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 //                            }
 //                        }
 //                    }
+                    int i = setUpdateNewValues(newValues, statement);
+                    setWhereSqlParamValue(pms, statement, i);
                     if (this.isShowSql) {
                         log.error(statement.toString());
                     }
-                    int i = setUpdateNewValues(newValues, statement);
-                    setWhereSqlParamValue(pms, statement, i);
                     ttc += statement.executeUpdate();
                 }
                 if (version && ttc == 0) {

@@ -6,6 +6,6 @@ package com.mydata.domain;
  *
  * @author Liu Tao
  */
-public class Domian extends MyDataOperationTimeEntity {
+public class Domain extends MyDataOperationTimeEntity {
 
 }
