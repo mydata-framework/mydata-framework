@@ -848,6 +848,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 //                }
 //            }
 //        }
+        if (pms == null) {
+            pms = new String[0];
+        }
         PreparedStatement st = this.getConnectionManager().getConnection().prepareStatement(sql);
         if (pms != null) {
             for (int i = 1; i < pms.length + 1; i++) {
@@ -957,6 +960,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 //                    log.info("param"+(i+1)+"="+pms[i].toString());
 //                }
 //            }
+            if (pms == null) {
+                pms = new String[0];
+            }
             PreparedStatement st = this.getConnectionManager().getConnection().prepareStatement(sql);
             for (int i = 1; i < pms.length + 1; i++) {
                 Object o = pms[i - 1];
@@ -2269,9 +2275,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     //not sort page query
     private PageData<POJO> getListFromNotSorted(Boolean isRead, int curPage, int pageSize, Set<Param> params, String... strings) {
-        if (this.getConnectionManager().isShowSql()) {
-            log.info("begin........................................");
-        }
+        //if (this.getConnectionManager().isShowSql()) {
+        //    log.info("begin........................................");
+        //}
         try {
             String selectpre = getPreSelectSql(false, strings);
             String whereSqlByParam = getWhereSqlByParam(params);
@@ -2311,7 +2317,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         String sql = getSingleTableSelectPagingSqlByStartIndex(startindex, selectpre + q.getTbn() + whereSqlByParam, initSize);
                         PreparedStatement statement = getStatementBySql(isRead, sql);
                         setWhereSqlParamValue(params, statement);
-                        if (this.isShowSql) { log.error(statement.toString()); /*log.info(sql); */}
+                        //if (this.isShowSql) { log.error(statement.toString()); /*log.info(sql); */}
                         pss.add(new QueryVo<PreparedStatement>(q.getTbn(), statement));
                     }
                 } else {
@@ -2324,9 +2330,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             throw new IllegalStateException(e);
         } finally {
             this.getConnectionManager().closeConnection();
-            if (this.getConnectionManager().isShowSql()) {
-                log.info("........................................end");
-            }
+            //if (this.getConnectionManager().isShowSql()) {
+            //    log.info("........................................end");
+            //}
         }
 
     }

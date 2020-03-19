@@ -290,10 +290,13 @@ public class Param{
         return getStringMap(ag);
     }
 
+    public static Object[] arr(Object... ag){
+        return ag;
+    }
+
     public static String[] sarr(String... ag) {
         return getStringArr(ag);
     }
-
 
 
 }
