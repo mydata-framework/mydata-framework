@@ -13,13 +13,13 @@ import java.util.List;
 public final class PageData<T> implements Serializable {
     private static final long serialVersionUID = 909167901620112956L;
     // 当前页
-    private int curPage = 1;
+    private Integer curPage = 1;
     // 每页显示多少条记录数
-    private int pageSize = 20;
+    private Integer pageSize = 20;
     // 总页数
-    private long totalPage = 1;
+    private Long totalPage = 1L;
     // 总记录数
-    private long totalCount = 0;
+    private Long totalCount = 0L;
     // 分页数据集合
     private List<T> dataList = new ArrayList<T>();
     // 分页页码信息
@@ -37,7 +37,7 @@ public final class PageData<T> implements Serializable {
         this.isPrev = isPrev;
     }
 
-    public PageData(int curPage, int pageSize, long totalCount, List<T> dataList) {
+    public PageData(Integer curPage, Integer pageSize, long totalCount, List<T> dataList) {
         this.curPage = curPage;
         this.pageSize = pageSize;
         this.dataList = dataList;
@@ -56,11 +56,11 @@ public final class PageData<T> implements Serializable {
         super();
     }
 
-    public boolean getIsPrev() {
+    public Boolean getIsPrev() {
         return isPrev;
     }
 
-    public int getCurPage() {
+    public Integer getCurPage() {
         return curPage;
     }
 
@@ -80,15 +80,15 @@ public final class PageData<T> implements Serializable {
         this.pageIndex = pageIndex;
     }
 
-    public void setCurPage(int curPage) {
+    public void setCurPage(Integer curPage) {
         this.curPage = curPage;
     }
 
-    public int getPageSize() {
+    public Integer getPageSize() {
         return pageSize;
     }
 
-    public void setPageSize(int pageSize) {
+    public void setPageSize(Integer pageSize) {
         this.pageSize = pageSize;
     }
 

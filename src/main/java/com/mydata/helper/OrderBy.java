@@ -20,6 +20,12 @@ public class OrderBy {
         super();
     }
 
+    public OrderBy(String propertyName) {
+        super();
+        this.propertyName = propertyName;
+        this.isDesc = true;
+    }
+
     public OrderBy(String propertyName, Boolean isDesc) {
         super();
         this.propertyName = propertyName;
@@ -101,6 +107,9 @@ public class OrderBy {
     //缩短代码长度,推荐静态导入 import static com.mydata.helper.Param.*;  import static com.mydata.em.Operate.*; import static com.mydata.helper.OrderBy.*;
     public static LinkedHashSet<OrderBy> os(OrderBy... bies) {
         return new LinkedHashSet<>(Arrays.asList(bies));
+    }
+    public static OrderBy o(String propertyName){
+        return new OrderBy(propertyName);
     }
     public static OrderBy o(String propertyName, Boolean isDesc){
         return new OrderBy(propertyName,isDesc);
