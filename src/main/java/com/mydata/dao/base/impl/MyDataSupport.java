@@ -147,10 +147,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     } else {
                         //clean old global table id
                         //DELETE FROM TUSER_SEQ_ID
-                        String cleanIdSql = String.format("%s %s", KSentences.DELETE_FROM, idTableName);
-                        PreparedStatement preparedStatement = connection.prepareStatement(cleanIdSql);
-                        if (this.isShowSql) { log.error(preparedStatement.toString());/*log.info(cleanIdSql);*/ }
-                        preparedStatement.executeUpdate();
+                        // String cleanIdSql = String.format("%s %s", KSentences.DELETE_FROM, idTableName);
+                        // PreparedStatement preparedStatement = connection.prepareStatement(cleanIdSql);
+                        // if (this.isShowSql) { log.error(preparedStatement.toString());/*log.info(cleanIdSql);*/ }
+                        // preparedStatement.executeUpdate();
                     }
                 }
             }
@@ -1536,7 +1536,6 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     @Override
     public POJO getById(Serializable id, String... strings) {
         return getObjByid(true, id, strings);
-
     }
 
     @Override
@@ -1714,13 +1713,11 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         sb.append(")");
         String insertSql = sb.toString();
-        if (this.getConnectionManager().isShowSql()) {
-            log.info(insertSql);
-        }
         boolean autoincrement = isAutoIncrement();
         Connection connection = this.getConnectionManager().getConnection();
         PreparedStatement statement = autoincrement?connection.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS):connection.prepareStatement(insertSql);
         setParamVal(pojo, fields, tbe.getValue(), statement, this.getConnectionManager().getConnection());
+        if (this.isShowSql) { log.error(statement.toString()); /*log.info(insertSql);*/ }
         int cc = statement.executeUpdate();
         if (autoincrement) {
             ResultSet rs = statement.getGeneratedKeys();

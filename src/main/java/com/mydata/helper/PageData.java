@@ -108,4 +108,17 @@ public final class PageData<T> implements Serializable {
         this.dataList = dataList;
     }
 
+    @Override
+    public String toString() {
+        return "PageData{" +
+                "curPage=" + curPage +
+                ", pageSize=" + pageSize +
+                ", totalPage=" + totalPage +
+                ", totalCount=" + totalCount +
+                ", dataList=" + dataList +
+                ", pageIndex=" + pageIndex +
+                ", isNext=" + isNext +
+                ", isPrev=" + isPrev +
+                '}';
+    }
 }
