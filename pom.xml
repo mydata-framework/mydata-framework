@@ -145,9 +145,9 @@
                         <goals>
                             <goal>jar</goal>
                         </goals>
-                        <configuration>
+                        <!--<configuration>
                             <additionalparam>-Xdoclint:none</additionalparam>
-                        </configuration>
+                        </configuration>-->
                     </execution>
                 </executions>
             </plugin>
@@ -185,7 +185,7 @@
             </plugin>
 
             <!-- JNA -->
-            <plugin>
+            <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
@@ -193,7 +193,7 @@
                         <LD_LIBRARY_PATH>/usr/local/lib</LD_LIBRARY_PATH>
                     </environmentVariables>
                 </configuration>
-            </plugin>
+            </plugin>-->
 
             <!--compiler plugin,Maven 编译插件-->
             <plugin>

@@ -23,11 +23,6 @@ public @interface ColumnRule {
     RuleType ruleType();
 
     /**
-     *
-     *
-
-     */
-    /**
      * 规则基础数据
      * @return
      * 类型为RANGE代表每个表存放数据的最大数量,如果为MOD表示最多切分多少个表
