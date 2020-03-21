@@ -11,26 +11,26 @@ public interface IConnectionManager {
 
     /**
      * 1 1 get connection (primary db)
-     * @return
+     * @return .
      */
     Connection getConnection();
 
     /**
      * 2 get connection from is readOnly param
-     * @param readOnly
-     * @return
+     * @param readOnly .
+     * @return .
      */
     Connection getConnection(boolean readOnly);
 
     /**
      * 3 get primary db write connection
-     * @return
+     * @return .
      */
     Connection getWriteConnection();
 
     /**
      * 4 get read db connection
-     * @return
+     * @return .
      */
     Connection getReadConnection();
 
@@ -41,19 +41,20 @@ public interface IConnectionManager {
 
     /**
      * 6 begin transaction
+     * @param readOnly .
      * @return false : is already begin befor
      */
     Boolean beginTransaction(boolean readOnly);
 
     /**
      * 7 check transaction is begined
-     * @return
+     * @return .
      */
     boolean isTransactioning();
 
     /**
      * 8 check transaction is only read transaction
-     * @return
+     * @return .
      */
     boolean isTransReadOnly();
 
@@ -69,13 +70,13 @@ public interface IConnectionManager {
 
     /**
      * 11 check is open ddl
-     * @return
+     * @return .
      */
     boolean isDdl();
 
     /**
      * 12 check is show sql
-     * @return
+     * @return .
      */
     boolean isShowSql();
 

@@ -46,7 +46,7 @@ public class PgIdx implements Serializable {
      * @param indexCount 显示多少页
      * @param curPage    当前页
      * @param totalPage  总页数
-     * @return
+     * @return .
      */
     public static PgIdx getPageIndex(long indexCount, int curPage, long totalPage) {
         long startpage = curPage - (indexCount % 2 == 0 ? indexCount / 2 - 1 : indexCount / 2);

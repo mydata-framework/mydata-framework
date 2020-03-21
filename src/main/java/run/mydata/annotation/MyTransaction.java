@@ -14,7 +14,16 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface MyTransaction {
+
+    /**
+     *
+     * @return .
+     */
     boolean readOnly() default false;
 
+    /**
+     *
+     * @return .
+     */
     String connectionManager() default "";
 }

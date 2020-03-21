@@ -6,22 +6,10 @@ package run.mydata.em;
  * @author Liu Tao
  */
 public enum PmType {
-    /**
-     * 原生类型
-     * <p>
-     * createdate=moddate
-     */
+    //原生类型 createdate=moddate
     OG,
-    /**
-     * 值类型
-     * <p>
-     * where amount !<100
-     */
+    //值类型 where amount !< 100
     VL,
-    /**
-     * 函数
-     * <p>
-     * having count(amount)>20
-     */
+    //函数 having count(amount)>20
     FUN
 }

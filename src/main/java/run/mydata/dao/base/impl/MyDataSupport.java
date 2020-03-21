@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
 
 /**
  * MyDataSupport
- * @param <POJO>
+ * @param <POJO> .
  * @author Liu Tao
  */
 public abstract class MyDataSupport<POJO> implements IMyData<POJO> {

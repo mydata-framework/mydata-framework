@@ -16,13 +16,15 @@ import java.util.List;
  * @author Liu Tao
  */
 public interface MyObjectUtils {
+
     /**
      * 封装对象
      *
-     * @param os        对象属性值
-     * @param propertys 属性名称
-     * @param clazz     对象类型
-     * @return
+     * @param os        对象属性值 . .
+     * @param propertys 属性名称 . .
+     * @param clazz     对象类型 . .
+     * @param <T> . .
+     * @return .
      */
     public static <T> List<T> encapsulation(List<Object[]> os, String[] propertys, Class<T> clazz) {
         List<T> ts = new ArrayList<>();
@@ -57,14 +59,16 @@ public interface MyObjectUtils {
     /**
      * 设置对象属性的值
      *
-     * @param property 属性名称
-     * @param ov       值
-     * @param obj      目标对象
-     * @throws IllegalArgumentException
-     * @throws IllegalAccessException
-     * @throws NoSuchFieldException
-     * @throws SecurityException
+     * @param property 属性名称 . .
+     * @param ov       值 . .
+     * @param obj      目标对象 . .
+     * @param <T> .
+     * @throws IllegalArgumentException .
+     * @throws IllegalAccessException .
+     * @throws NoSuchFieldException .
+     * @throws SecurityException .
      */
+
     public static <T> void setObjectValue(String property, Object ov, T obj)
             throws IllegalArgumentException, IllegalAccessException, NoSuchFieldException, SecurityException {
         setObjectValue(obj.getClass().getDeclaredField(property), ov, obj);
@@ -73,11 +77,12 @@ public interface MyObjectUtils {
     /**
      * 设置对象属性字段的值
      *
-     * @param fd  属性字段
-     * @param ov  值
-     * @param obj 目标对象
-     * @throws IllegalArgumentException
-     * @throws IllegalAccessException
+     * @param fd  属性字段 . .
+     * @param ov  值 . .
+     * @param obj 目标对象 . .
+     * @param <T> .
+     * @throws IllegalArgumentException .
+     * @throws IllegalAccessException .
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static <T> void setObjectValue(Field fd, Object ov, T obj) throws IllegalArgumentException, IllegalAccessException {
@@ -146,10 +151,10 @@ public interface MyObjectUtils {
 
     /**
      * 设置数字类型字段的值
-     *
-     * @param fd
-     * @param obj
-     * @param bdov
+     * @param fd .
+     * @param obj .
+     * @param bdov .
+     * @param <T> .
      */
     public static <T> void setNumberValue(Field fd, T obj, Number bdov) {
         if (bdov != null) {

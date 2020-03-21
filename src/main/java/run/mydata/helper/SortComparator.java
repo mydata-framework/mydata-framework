@@ -8,12 +8,18 @@ import java.util.LinkedHashSet;
 /**
  * 排序操作
  *
- * @param <T>
+ * @param <T> .
  * @author Liu Tao
  */
 public class SortComparator<T> implements Comparator<T> {
     private LinkedHashSet<SortInfo> sorts;
 
+    /**
+     *
+     * @param o1 .
+     * @param o2 .
+     * @return .
+     */
     @Override
     public int compare(T o1, T o2) {
         int i = 0;
@@ -52,6 +58,13 @@ public class SortComparator<T> implements Comparator<T> {
         return i;
     }
 
+    /**
+     *
+     * @param v1 .
+     * @param v2 .
+     * @param isDesc .
+     * @return .
+     */
     @SuppressWarnings({"rawtypes", "unchecked"})
     private int comparebase(Object v1, Object v2, boolean isDesc) {
         if (v1 != null && v2 != null) {
@@ -65,6 +78,10 @@ public class SortComparator<T> implements Comparator<T> {
         return 0;
     }
 
+    /**
+     *
+     * @param sorts .
+     */
     public SortComparator(LinkedHashSet<SortInfo> sorts) {
         super();
         this.sorts = sorts;

@@ -110,9 +110,9 @@ public class Param{
 
     /**
      * 除了between外,最常用的条件参数初始化
-     * @param pname
-     * @param operators
-     * @param value
+     * @param pname .
+     * @param operators .
+     * @param value .
      */
     public Param(String pname, Operate operators, Object value) {
         super();
@@ -135,9 +135,9 @@ public class Param{
 
     /**
      * between 查询
-     * @param pname
-     * @param firstValue
-     * @param value
+     * @param pname .
+     * @param firstValue .
+     * @param value .
      */
     public Param(Object firstValue, String pname, Object value) {
         super();
@@ -149,8 +149,8 @@ public class Param{
 
     /**
      * in 查询
-     * @param pname
-     * @param inValue
+     * @param pname .
+     * @param inValue .
      */
     public Param(String pname, List<?> inValue) {
         super();
@@ -168,6 +168,7 @@ public class Param{
      * 用于使用 AND  END
      */
     private Set<Param> params;
+
     public Param AND(String pname, Operate operators, Object value){
         Param param = new Param(pname, operators, value);
         if (this.params == null) {

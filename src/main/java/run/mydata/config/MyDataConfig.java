@@ -12,6 +12,7 @@ import java.util.Arrays;
 
 /**
  * 自动配置
+ * @author Liu Tao
  */
 public class MyDataConfig {
 

@@ -3,11 +3,13 @@ package run.mydata.helper;
 /**
  * 并行查询
  *
- * @param <T>
+ * @param <T> .
  * @author Liu Tao
  */
 public class QueryVo<T> {
+
     private String tbn;
+
     private T ov;
 
     public String getTbn() {

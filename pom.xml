@@ -4,15 +4,35 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-
     <groupId>run.mydata</groupId>
     <artifactId>mydata-framework</artifactId>
     <version>1.0</version>
+    <packaging>jar</packaging>
+
+    <name>mydata-framework</name>
+    <url>https://github.com/mydata-framework/mydata-framework</url>
+    <description>It's powerful and use to so easy! OK, It's Framework for Java persistence layer.</description>
+
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <scm>
+        <url>http://run.mydata</url>
+        <connection>scm:git:https://github.com/mydata-framework/mydata-framework.git</connection>
+        <developerConnection>scm:git:https://github.com/mydata-framework/mydata-framework.git</developerConnection>
+    </scm>
 
     <developers>
         <developer>
             <name>Liu Tao</name>
             <email>msliutao@foxmail.com</email>
+            <organization>http://run.mydata</organization>
+            <organizationUrl>http://run.mydata</organizationUrl>
             <roles>
                 <role>Programmer</role>
             </roles>
@@ -20,16 +40,16 @@
     </developers>
 
     <properties>
+        <java.version>1.8</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring.version>5.2.0.RELEASE</spring.version><!-- <spring.version>4.3.10.RELEASE</spring.version> -->
         <aspectj.version>1.8.8</aspectj.version><!-- <aspectj.version>1.8.8</aspectj.version> -->
         <mysql.version>6.0.6</mysql.version><!-- <mysql.version>1.8.8</mysql.version> -->
-        <persistence.version>1.0.2</persistence.version><!-- <persistence.version>1.8.8</persistence.version> -->
+        <persistence.version>1.0.2</persistence.version><!-- <persistence.version>1.8.8</persistence.version> 1.0.2-->
         <junit.version>4.11</junit.version><!-- <persistence.version>1.8.8</persistence.version> -->
         <log4j.version>1.7.18</log4j.version><!-- <persistence.version>1.8.8</persistence.version> -->
         <spring.autoconfig.version>1.1.0.RELEASE</spring.autoconfig.version>
     </properties>
-
 
     <dependencies>
         <!--jdbc-->
@@ -109,14 +129,105 @@
 
     <build>
         <plugins>
+            <!--doc plugin,Maven API文档生成插件-->
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <charset>UTF-8</charset>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <additionalparam>-Xdoclint:none</additionalparam>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--resources plugin,Maven 资源插件-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--gpg plugin,用于签名认证-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>1.5</version>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- JNA -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <environmentVariables>
+                        <LD_LIBRARY_PATH>/usr/local/lib</LD_LIBRARY_PATH>
+                    </environmentVariables>
+                </configuration>
+            </plugin>
+
+            <!--compiler plugin,Maven 编译插件-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.3</version>
                 <configuration>
                     <source>1.8</source>
                     <target>1.8</target>
                 </configuration>
             </plugin>
+
+            <!--release plugin,用于发布到release仓库部署插件-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>2.5.1</version>
+            </plugin>
+
+            <!--staging puglin,用于自动执行发布阶段(免手动)-->
+            <!--<plugin>
+                <groupId>org.sonatype.plugins</groupId>
+                <artifactId>nexus-staging-maven-plugin</artifactId>
+                <version>1.6.7</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <serverid>oss</serverid>
+                    <nexusurl>https://oss.sonatype.org/</nexusurl>
+                    <autoreleaseafterclose>true</autoreleaseafterclose>
+                </configuration>
+            </plugin>-->
+
         </plugins>
+
         <resources>
             <resource>
                 <directory>src/main/resources/META-INF</directory>

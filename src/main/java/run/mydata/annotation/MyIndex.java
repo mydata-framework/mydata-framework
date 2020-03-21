@@ -16,27 +16,25 @@ public @interface MyIndex {
 
     /**
      * 索引名称
+     * @return .
      */
     String name() default "";
 
     /**
      * 是否创建唯一索引
-     *
-     * @return
+     * @return .
      */
     boolean unique() default false;
 
     /**
      * 联合索引的第二个属性名称
-     *
-     * @return
+     * @return .
      */
     String otherPropName() default "";
 
     /**
      * 字符串类型索引长度
-     *
-     * @return
+     * @return .
      */
     int length() default 20;
 }

@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * 分页信息
  *
- * @param <T>
+ * @param <T> .
  * @author Liu Tao
  */
 public final class PageData<T> implements Serializable {

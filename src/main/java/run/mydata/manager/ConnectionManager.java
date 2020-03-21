@@ -130,8 +130,8 @@ public final class ConnectionManager implements IConnectionManager {
     /**
      * get domains field column properties , key is @Table name, value is every filed properties
      * current class may be has more than 1 table for split , may be minimum is 1, then get the first table data info,this is domain column field properties, it's just how it is
-     * @param domainClass
-     * @return
+     * @param domainClass .
+     * @return .
      */
     public static Map<String, LinkedHashSet<PropInfo>> getTbinfo(Class<?> domainClass) {
         ConcurrentHashMap<String, LinkedHashSet<PropInfo>> tableNamePropsMap = ENTITY_CACHED.get(domainClass);
@@ -234,7 +234,7 @@ public final class ConnectionManager implements IConnectionManager {
 
     /**
      * 1 get connection (primary db)
-     * @return
+     * @return .
      */
     @Override
     public Connection getConnection() {
@@ -243,8 +243,8 @@ public final class ConnectionManager implements IConnectionManager {
 
     /**
      * 2 get connection from is readOnly param
-     * @param readOnly
-     * @return
+     * @param readOnly .
+     * @return .
      */
     @Override
     public Connection getConnection(boolean readOnly) {
@@ -257,7 +257,7 @@ public final class ConnectionManager implements IConnectionManager {
 
     /**
      * 3 get primary db write connection
-     * @return
+     * @return .
      */
     @Override
     public Connection getWriteConnection() {
@@ -279,7 +279,7 @@ public final class ConnectionManager implements IConnectionManager {
 
     /**
      * 4 get read db connection
-     * @return
+     * @return .
      */
     @Override
     public Connection getReadConnection() {
@@ -326,7 +326,7 @@ public final class ConnectionManager implements IConnectionManager {
 
     /**
      * 6 begin transaction
-     * @return false : is already begin befor
+     * @return false : is already begin befor .
      */
     @Override
     public Boolean beginTransaction(boolean readOnly) {
@@ -352,7 +352,7 @@ public final class ConnectionManager implements IConnectionManager {
 
     /**
      * 7 check transaction is begined
-     * @return
+     * @return .
      */
     @Override
     public boolean isTransactioning() {
@@ -362,7 +362,7 @@ public final class ConnectionManager implements IConnectionManager {
 
     /**
      * 8 check transaction is only read transaction
-     * @return
+     * @return .
      */
     @Override
     public boolean isTransReadOnly() {
@@ -422,7 +422,7 @@ public final class ConnectionManager implements IConnectionManager {
 
     /**
      * 11 check is open ddl
-     * @return
+     * @return .
      */
     @Override
     public boolean isDdl() {
@@ -431,7 +431,7 @@ public final class ConnectionManager implements IConnectionManager {
 
     /**
      * 12 check is show sql
-     * @return
+     * @return .
      */
     @Override
     public boolean isShowSql() {

@@ -8,7 +8,7 @@ import javax.annotation.Resource;
 /**
  * MyData
  * @author Liu Tao
- * @param <POJO>
+ * @param <POJO> .
  */
 public class MyData<POJO> extends MyDataSupport<POJO> {
 
