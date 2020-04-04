@@ -223,7 +223,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     }
                     if (sb.length() > 0) {
                         String avl = sb.toString();
-                        for (String t : getCurrentTables()) {
+                        Set<String> currentTables = getCurrentTables();
+                        connection = this.getConnectionManager().getConnection();
+                        for (String t : currentTables) {
                             try {
                                 String sql = String.format(ALTER_TABLE_S_ADD_S, t, avl);
                                 PreparedStatement preparedStatement = connection.prepareStatement(sql);
