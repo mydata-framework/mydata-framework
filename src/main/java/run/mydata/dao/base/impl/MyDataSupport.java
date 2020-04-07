@@ -2860,7 +2860,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         } else {
             if (pm.getValue() != null && !pm.getValue().toString().trim().equals("")) {
                 setcName(sb, pm, p);
-                sb.append(pm.getOperators().getValue()).append(KSentences.POSITION_PLACEHOLDER.getValue());
+                if (pm.getOperators().name().startsWith("C_")){
+                    sb.append(pm.getOperators().getValue()).append("`").append(pm.getValue()).append("`");
+                }else{
+                    sb.append(pm.getOperators().getValue()).append(KSentences.POSITION_PLACEHOLDER.getValue());
+                }
+
             } else if (pm.getOperators().equals(Operate.EQ) || pm.getOperators().equals(Operate.NOT_EQ)) {
                 if (getPmsType(pm) == String.class) {
                     sb.append("(");
@@ -2910,6 +2915,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     protected int setWhereSqlParamValue(Set<Param> pms, PreparedStatement statement, int ix) {
         if (pms != null && pms.size() > 0) {
             for (Param pm : pms) {
+                if (pm.getOperators().name().startsWith("C_")){
+                    continue;
+                }
                 if (pm.getPname() != null && pm.getPname().trim().length() > 0) {
                     do {
                         try {

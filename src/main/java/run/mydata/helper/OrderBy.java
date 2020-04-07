@@ -104,7 +104,7 @@ public class OrderBy {
         return new LinkedHashSet<>(Arrays.asList(bies));
     }
 
-    //缩短代码长度,推荐静态导入 import static com.mydata.helper.Param.*;  import static com.mydata.em.Operate.*; import static com.mydata.helper.OrderBy.*;
+    //缩短代码长度,推荐静态导入 import static run.mydata.helper.Param.*;  import static run.mydata.em.Operate.*; import static run.mydata.helper.OrderBy.*;
     public static LinkedHashSet<OrderBy> os(OrderBy... bies) {
         return new LinkedHashSet<>(Arrays.asList(bies));
     }

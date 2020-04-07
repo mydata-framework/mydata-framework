@@ -115,6 +115,63 @@ public enum Operate {
         public String getValue() {
             return "  between  ";
         }
+    },
+
+
+
+    /**
+     * Column 等于
+     */
+    C_EQ {
+        @Override
+        public String getValue() {
+            return "=";
+        }
+    },
+    /**
+     * Column 大于
+     */
+    C_GT {
+        @Override
+        public String getValue() {
+            return ">";
+        }
+    },
+    /**
+     * Column 小于
+     */
+    C_LT {
+        @Override
+        public String getValue() {
+            return "<";
+        }
+    },
+    /**
+     * Column 大于等于
+     */
+    C_GE {
+        @Override
+        public String getValue() {
+            return ">=";
+        }
+    },
+    /**
+     * Column 小于等于
+     */
+    C_LE {
+        @Override
+        public String getValue() {
+            return "<=";
+        }
+    },
+    /**
+     * Column 不等于
+     */
+    C_NOT_EQ {
+        @Override
+        public String getValue() {
+            return "<>";
+        }
     };
 
     @Override
