@@ -214,14 +214,21 @@ public class Param{
 
     public static Set<Param> getParams(Param... params) {
         if (params == null) {
-            return new HashSet<>(0);
+            //return new HashSet<>(0);
+            return new LinkedHashSet<>();
         }
 
         List<Param> asList = Arrays.asList(params);
         if (asList.size() > 0) {
-            return asList.stream().filter(pm -> pm != null && pm.getPname() != null && pm.getPname().trim().length() > 0).collect(Collectors.toSet());
+            //return asList.stream().filter(pm -> pm != null && pm.getPname() != null && pm.getPname().trim().length() > 0).collect(Collectors.toSet());
+            Set<Param> set = new LinkedHashSet<>();
+            for (Param param : params) {
+                set.add(param);
+            }
+            return set;
         } else {
-            return new HashSet<>(0);
+            //return new HashSet<>(0);
+            return new LinkedHashSet<>();
         }
     }
 
