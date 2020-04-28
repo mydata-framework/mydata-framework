@@ -117,6 +117,7 @@ public class OrderBy {
     public static OrderBy o(String propertyName, String funName, Boolean isDesc){
         return new OrderBy(propertyName,funName,isDesc);
     }
-
+    public static final boolean DESC = true;
+    public static final boolean ASC = false;
 
 }

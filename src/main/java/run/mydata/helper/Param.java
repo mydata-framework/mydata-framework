@@ -283,7 +283,7 @@ public class Param{
     }
 
     public static Param p(String pname, List<?> inValue) {
-        return new Param(pname, pname, inValue);
+        return new Param(pname, inValue);
     }
 
     public static Param p(String pname, Operate operators, Object value, String funName, PmType cdType) {
