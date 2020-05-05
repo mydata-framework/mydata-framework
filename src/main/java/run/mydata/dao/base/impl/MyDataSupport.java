@@ -45,10 +45,22 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private boolean isShowSql;
     //is ddl
     private boolean isGenerateDdl;
+
     //is has table comment
     private boolean hasTableComment;
     //if has table comment , this is table comment content
     private String tableComment;
+
+    //is has table engine
+    private boolean hasTableEngine;
+    //if has table engine , this is table engine content
+    private String tableEngine;
+
+    //is has table charset
+    private boolean hasTableCharset;
+    //if has table charset , this is table charset content
+    private String tableCharset;
+
     //connection Manager
     public abstract IConnectionManager getConnectionManager();
     //one table split max count
@@ -73,6 +85,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             this.dataBaseTypeName = MyDataHelper.getDataBaseTypeName(this.getConnectionManager());
             this.tableComment=MyDataHelper.getTableColumn(this.domainClazz);
             this.hasTableComment=this.tableComment==null?false:true;
+            this.tableEngine = MyDataHelper.getTableEngine(this.domainClazz);
+            this.hasTableEngine=this.tableEngine==null?false:true;
+            this.tableCharset = MyDataHelper.getTableCharset(this.domainClazz);
+            this.hasTableCharset=this.tableCharset==null?false:true;
             this.isShowSql = this.getConnectionManager().isShowSql();
             this.isGenerateDdl = this.getConnectionManager().isDdl();
             //domain column field properties
@@ -327,6 +343,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
             // )
             ctbsb.append(") ");
+            if (this.hasTableEngine) {
+                ctbsb.append(KSentences.ENGINE.getValue()).append(KSentences.EQ.getValue()).append(this.tableEngine).append(KSentences.SPACING.getValue());
+            }
+            if (this.hasTableCharset) {
+                ctbsb.append(KSentences.CHARSET.getValue()).append(KSentences.EQ.getValue()).append(this.tableCharset).append(KSentences.SPACING.getValue());
+            }
             if (this.hasTableComment) {
                 ctbsb.append(KSentences.COMMENT.getValue()).append(" '").append(this.tableComment).append("' ");
             }

@@ -1,6 +1,8 @@
 package run.mydata.helper;
 
+import run.mydata.annotation.TableCharset;
 import run.mydata.annotation.TableComment;
+import run.mydata.annotation.TableEngine;
 import run.mydata.manager.IConnectionManager;
 
 import javax.persistence.Table;
@@ -49,5 +51,16 @@ public class MyDataHelper<Pojo> {
         TableComment tableComment = domainClazz.getAnnotation(TableComment.class);
         return tableComment==null?null:tableComment.value();
     }
+
+    public static String getTableEngine(Class<?> domainClazz) {
+        TableEngine tableEngine = domainClazz.getAnnotation(TableEngine.class);
+        return tableEngine==null?null:tableEngine.value();
+    }
+
+    public static String getTableCharset(Class<?> domainClazz) {
+        TableCharset tableCharset = domainClazz.getAnnotation(TableCharset.class);
+        return tableCharset==null?null:tableCharset.value();
+    }
+
 
 }

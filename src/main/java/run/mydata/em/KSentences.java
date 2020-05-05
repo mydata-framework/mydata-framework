@@ -6,6 +6,12 @@ package run.mydata.em;
  * @author Liu Tao
  */
 public enum KSentences {
+    SPACING {
+        @Override
+        public String getValue() {
+            return " ";
+        }
+    },
     AVG {
         @Override
         public String getValue() {
@@ -114,6 +120,18 @@ public enum KSentences {
         @Override
         public String getValue() {
             return "COMMENT ";
+        }
+    },
+    ENGINE {
+        @Override
+        public String getValue() {
+            return "ENGINE";
+        }
+    },
+    CHARSET {
+        @Override
+        public String getValue() {
+            return "DEFAULT CHARSET";
         }
     },
     UPDATE {
