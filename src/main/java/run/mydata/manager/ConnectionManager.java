@@ -1,5 +1,6 @@
 package run.mydata.manager;
 
+import run.mydata.annotation.ColumnComment;
 import run.mydata.annotation.ColumnRule;
 import run.mydata.annotation.MyIndex;
 import run.mydata.helper.PropInfo;
@@ -162,6 +163,14 @@ public final class ConnectionManager implements IConnectionManager {
                     PropInfo info = new PropInfo();
                     info.setPname(field.getName());
                     info.setType(field.getType());
+
+                    if (field.isAnnotationPresent(ColumnComment.class)) {
+                        ColumnComment fieldColumnCommentAnnotation = field.getAnnotation(ColumnComment.class);
+                        if (fieldColumnCommentAnnotation.value() != null && !"".equals(fieldColumnCommentAnnotation.value())) {
+                            info.setComment(fieldColumnCommentAnnotation.value());
+                        }
+                    }
+
                     if (field.isAnnotationPresent(Column.class)) {
                         Column fieldColumnAnnotation = field.getAnnotation(Column.class);
                         String columnName = fieldColumnAnnotation.name();
@@ -179,12 +188,13 @@ public final class ConnectionManager implements IConnectionManager {
                         if (fieldColumnAnnotation.unique()) {
                             info.setIsUnique(true);
                         }
-                        if (fieldColumnAnnotation.columnDefinition()!=null&&!"".equals(fieldColumnAnnotation.columnDefinition())) {
+                        if (info.getComment() == null && fieldColumnAnnotation.columnDefinition()!=null && !"".equals(fieldColumnAnnotation.columnDefinition())) {
                             info.setComment(fieldColumnAnnotation.columnDefinition());
                         }
                     } else {
                         info.setCname(field.getName());
                     }
+
                     if (field.isAnnotationPresent(Id.class)) {
                         info.setIsPrimarykey(true);
                         if (field.isAnnotationPresent(GeneratedValue.class)) {
