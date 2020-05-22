@@ -80,4 +80,10 @@ public interface IConnectionManager {
      */
     boolean isShowSql();
 
+    /**
+     * 13 get db type name
+     * @return .
+     */
+    String getDb();
+
 }

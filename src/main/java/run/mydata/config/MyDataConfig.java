@@ -28,6 +28,7 @@ public class MyDataConfig {
         connectionManager.setDdl(properties.getDdl());
         connectionManager.setShowSql(properties.getShowSql());
         connectionManager.setConnectStr("set  names  utf8");
+        connectionManager.setDb(properties.getDb());
 
         connectionManager.setDataSource(dataSource);
         connectionManager.setReadDataSources(Arrays.asList(dataSource));

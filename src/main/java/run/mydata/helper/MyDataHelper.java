@@ -32,8 +32,13 @@ public class MyDataHelper<Pojo> {
     }
 
     public static String getDataBaseTypeName(IConnectionManager connectionManager) throws SQLException {
-        String databaseProductName = connectionManager.getConnection().getMetaData().getDatabaseProductName();
-        return databaseProductName;
+        String dbTypeName = null;
+        if ((dbTypeName = connectionManager.getDb()) != null && !"".equals(dbTypeName.trim())) {
+            return dbTypeName;
+        } else {
+            dbTypeName = connectionManager.getConnection().getMetaData().getDatabaseProductName();
+        }
+        return dbTypeName;
     }
 
     public static String getFirstTableName(Class<?> domainClazz) {
@@ -49,17 +54,17 @@ public class MyDataHelper<Pojo> {
 
     public static String getTableColumn(Class<?> domainClazz) {
         TableComment tableComment = domainClazz.getAnnotation(TableComment.class);
-        return tableComment==null?null:tableComment.value();
+        return tableComment == null ? null : tableComment.value();
     }
 
     public static String getTableEngine(Class<?> domainClazz) {
         TableEngine tableEngine = domainClazz.getAnnotation(TableEngine.class);
-        return tableEngine==null?null:tableEngine.value();
+        return tableEngine == null ? null : tableEngine.value();
     }
 
     public static String getTableCharset(Class<?> domainClazz) {
         TableCharset tableCharset = domainClazz.getAnnotation(TableCharset.class);
-        return tableCharset==null?null:tableCharset.value();
+        return tableCharset == null ? null : tableCharset.value();
     }
 
 

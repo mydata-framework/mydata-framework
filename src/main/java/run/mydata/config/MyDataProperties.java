@@ -13,6 +13,9 @@ public class MyDataProperties {
     //enable ddl
     private Boolean ddl = true;
 
+    //dbName
+    private String db; // MySQL ...
+
     public Boolean getShowSql() {
         return showSql;
     }
@@ -27,5 +30,13 @@ public class MyDataProperties {
 
     public void setDdl(Boolean ddl) {
         this.ddl = ddl;
+    }
+
+    public String getDb() {
+        return db;
+    }
+
+    public void setDb(String db) {
+        this.db = db;
     }
 }

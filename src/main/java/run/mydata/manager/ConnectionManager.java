@@ -35,6 +35,8 @@ public final class ConnectionManager implements IConnectionManager {
     private boolean ddl = true;
     //init column string
     private String connectStr = "set  names  utf8";
+    //db name
+    private String db;//MySQL Oracle
     //primary db
     private DataSource dataSource;
     //read dbs
@@ -446,6 +448,15 @@ public final class ConnectionManager implements IConnectionManager {
     @Override
     public boolean isShowSql() {
         return showSql;
+    }
+
+    @Override
+    public String getDb() {
+        return db;
+    }
+
+    public void setDb(String db){
+        this.db=db;
     }
 
 

@@ -17,6 +17,11 @@
       "sourceType": "run.mydata.config.MyDataProperties",
       "name": "mydata.showSql",
       "type": "java.lang.Boolean"
+    },
+    {
+      "sourceType": "run.mydata.config.MyDataProperties",
+      "name": "mydata.db",
+      "type": "java.lang.String"
     }
   ]
 }
