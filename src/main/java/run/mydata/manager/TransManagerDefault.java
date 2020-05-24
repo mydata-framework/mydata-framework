@@ -12,7 +12,7 @@ import java.lang.invoke.MethodHandles;
 @Aspect
 public class TransManagerDefault {
     private static Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private @Resource IConnectionManager connectionManager;
+    private IConnectionManager connectionManager;
 
     @Around("@annotation(org.springframework.transaction.annotation.Transactional)")
     public Object transactional(ProceedingJoinPoint pjp) throws Throwable {

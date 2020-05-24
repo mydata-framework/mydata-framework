@@ -22,7 +22,7 @@ import java.util.Map;
 @Aspect
 public class TransManager {
     private static Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-    private @Resource IConnectionManager connectionManager;
+    private IConnectionManager connectionManager;
 
     @Around("@annotation(run.mydata.annotation.MyTransaction)")
     public Object transactional(ProceedingJoinPoint pjp) throws Throwable {
