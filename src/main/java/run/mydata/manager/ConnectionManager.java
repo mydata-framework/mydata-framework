@@ -432,8 +432,11 @@ public final class ConnectionManager implements IConnectionManager {
                     if (mdcMap.size() == 0) {
                         connections.remove();
                     }
-                    transactions.remove();
-
+                    Map<ConnectionManager, TransactionLocal> ctMap = getTransactions().get();
+                    ctMap.remove(this);
+                    if (ctMap.size() == 0) {
+                        transactions.remove();
+                    }
                 } catch (Exception e) {
                     e.printStackTrace();
                     throw new IllegalStateException(e);
@@ -465,8 +468,11 @@ public final class ConnectionManager implements IConnectionManager {
                         if (mdcMap.size() == 0) {
                             connections.remove();
                         }
-                        transactions.remove();
-
+                        Map<ConnectionManager, TransactionLocal> ctMap = getTransactions().get();
+                        ctMap.remove(this);
+                        if (ctMap.size() == 0) {
+                            transactions.remove();
+                        }
                     } catch (Exception e) {
                         e.printStackTrace();
                         throw new IllegalStateException(e);
