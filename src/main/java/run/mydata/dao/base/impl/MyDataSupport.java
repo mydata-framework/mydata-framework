@@ -259,8 +259,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             e.printStackTrace();
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
         }
+    }
+
+    private void closeConnection(){
+        this.getConnectionManager().closeConnection();
     }
 
     //table is exist?
@@ -294,7 +298,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             e.printStackTrace();
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
         }
     }
 
@@ -679,7 +683,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         } catch (Exception e) {
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
         }
         return DOMAINCLASS_TABLES_MAP.get(domainClazz);
     }
@@ -732,7 +736,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             e.printStackTrace();
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
 
         }
         return 0;
@@ -796,6 +800,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }finally {
+            closeConnection();
         }
     }
 
@@ -822,6 +828,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }finally {
+            closeConnection();
         }
     }
 
@@ -1014,6 +1022,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             return st.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        }finally {
+            closeConnection();
         }
     }
 
@@ -1052,7 +1062,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         } catch (Exception e) {
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
         }
     }
 
@@ -1091,7 +1101,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             } catch (Exception e) {
                 throw new IllegalStateException(e);
             } finally {
-                this.getConnectionManager().closeConnection();
+                closeConnection();
             }
         }
         return 0D;
@@ -1310,7 +1320,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             e.printStackTrace();
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
         }
     }
 
@@ -1471,7 +1481,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             e.printStackTrace();
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
         }
     }
 
@@ -1596,7 +1606,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 e.printStackTrace();
                 throw new IllegalStateException(e);
             } finally {
-                this.getConnectionManager().closeConnection();
+                closeConnection();
             }
         }
         return null;
@@ -1653,7 +1663,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             e.printStackTrace();
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
         }
 
         return null;
@@ -1690,7 +1700,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 e.printStackTrace();
                 throw new IllegalArgumentException(e);
             } finally {
-                this.getConnectionManager().closeConnection();
+                closeConnection();
             }
         }
         return i;
@@ -1707,7 +1717,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 e.printStackTrace();
                 throw new IllegalArgumentException(e);
             } finally {
-                this.getConnectionManager().closeConnection();
+                closeConnection();
             }
         }
         return rzc;
@@ -1962,7 +1972,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             e.printStackTrace();
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
         }
     }
 
@@ -2117,7 +2127,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             e.printStackTrace();
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
         }
 
     }
@@ -2142,7 +2152,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             e.printStackTrace();
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
         }
     }
 
@@ -2275,7 +2285,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 e.printStackTrace();
                 throw new IllegalStateException(e);
             } finally {
-                this.getConnectionManager().closeConnection();
+                closeConnection();
             }
         }
 
@@ -2351,7 +2361,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             e.printStackTrace();
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
             //if (this.getConnectionManager().isShowSql()) {
             //    log.info("........................................end");
             //}
@@ -2435,7 +2445,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         } catch (Exception e) {
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
         }
 
     }
@@ -2554,7 +2564,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             e.printStackTrace();
             throw new IllegalStateException(e);
         } finally {
-            this.getConnectionManager().closeConnection();
+            closeConnection();
         }
     }
 

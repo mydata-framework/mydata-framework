@@ -46,20 +46,45 @@ public final class ConnectionManager implements IConnectionManager {
     //key: tableClass value : (key: tableName, value: properties)
     private volatile static ConcurrentHashMap<Class<?>, ConcurrentHashMap<String, LinkedHashSet<PropInfo>>> ENTITY_CACHED = new ConcurrentHashMap<Class<?>, ConcurrentHashMap<String, LinkedHashSet<PropInfo>>>();
 
-    private static ThreadLocal<TransactionLocal> transactions = new ThreadLocal<TransactionLocal>() {
-        @Override
-        protected TransactionLocal initialValue() {
-            return new TransactionLocal(false, false);
+
+    private static ThreadLocal<Map<ConnectionManager,TransactionLocal>> transactions = new ThreadLocal(){};
+    private ThreadLocal<Map<ConnectionManager,TransactionLocal>> getTransactions(){
+        Map<ConnectionManager, TransactionLocal> ctMap = transactions.get();
+        if (ctMap == null) {
+            ctMap = new HashMap<>();
+            ctMap.put(this, new TransactionLocal(false,false,this));
+            transactions.set(ctMap);
+        }else {
+            TransactionLocal tl = ctMap.get(this);
+            if (tl == null) {
+                ctMap.put(this, new TransactionLocal(false,false,this));
+                transactions.set(ctMap);
+            }
         }
-    };
+        return transactions;
+    }
+
 
     //primary db
-    private final static ThreadLocal<Map<DataSource, Connection>> connections = new ThreadLocal<Map<DataSource, Connection>>() {
-        @Override
-        protected Map<DataSource, Connection> initialValue() {
-            return new HashMap<DataSource, Connection>(3);
+    private static ThreadLocal<Map<ConnectionManager,Map<DataSource, Connection>>> connections = new ThreadLocal() {};
+    private ThreadLocal<Map<ConnectionManager,Map<DataSource, Connection>>> getConnections(){
+        Map<ConnectionManager, Map<DataSource, Connection>> cdcMap = connections.get();
+        if (cdcMap == null) {
+            cdcMap = new HashMap<>();
+            Map<DataSource, Connection> dcMap = new HashMap<>();
+            cdcMap.put(this,dcMap);
+            connections.set(cdcMap);
+        }else{
+            Map<DataSource, Connection> dcMap = cdcMap.get(this);
+            if (dcMap == null) {
+                dcMap = new HashMap<>();
+                cdcMap.put(this,dcMap);
+                connections.set(cdcMap);
+            }
         }
-    };
+        return connections;
+    }
+
 
     //read db
     private final static ThreadLocal<Map<DataSource, Connection>> readOnlyConnections = new ThreadLocal<Map<DataSource, Connection>>() {
@@ -274,14 +299,22 @@ public final class ConnectionManager implements IConnectionManager {
     @Override
     public Connection getWriteConnection() {
         try {
-            Connection conn = connections.get().get(dataSource);
-            if (conn == null) {
+            Map<DataSource, Connection> dcMap = getConnections().get().get(this);
+            if (dcMap==null){
                 log.debug("master connection open  {}", Thread.currentThread().getName());
-                connections.get().put(dataSource, dataSource.getConnection());
-                initConnect(connections.get().get(dataSource));
-                return connections.get().get(dataSource);
-            } else {
-                return conn;
+                getConnections().get().get(this).put(dataSource, dataSource.getConnection());
+                initConnect(getConnections().get().get(this).get(dataSource));
+                return getConnections().get().get(this).get(dataSource);
+            }else {
+                Connection conn = dcMap.get(dataSource);
+                if (conn == null) {
+                    log.debug("master connection open  {}", Thread.currentThread().getName());
+                    getConnections().get().get(this).put(dataSource, dataSource.getConnection());
+                    initConnect(getConnections().get().get(this).get(dataSource));
+                    return getConnections().get().get(this).get(dataSource);
+                } else {
+                    return conn;
+                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -323,14 +356,16 @@ public final class ConnectionManager implements IConnectionManager {
      */
     @Override
     public void closeConnection() {
-        Connection connection = connections.get().get(dataSource);
-        if (connection != null && !isTransactioning()) {
-            try {
-                log.debug("master connection close  {}", Thread.currentThread().getName());
-                connections.remove();
-                connection.close();
-            } catch (Exception e) {
-                e.printStackTrace();
+        if ( !isTransactioning() ) {
+            Connection connection = getConnections().get().get(this).get(dataSource);
+            if (connection != null) {
+                try {
+                    log.debug("master connection close  {}", Thread.currentThread().getName());
+                    getConnections().remove();
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
         closeReadconnection();
@@ -342,16 +377,12 @@ public final class ConnectionManager implements IConnectionManager {
      */
     @Override
     public Boolean beginTransaction(boolean readOnly) {
-        if (!isTransactioning()) {
+        if ( !isTransactioning() ) {
             try {
                 getWriteConnection().setAutoCommit(false);
-                TransactionLocal transactionLocal = transactions.get();
-                if (transactionLocal == null) {
-                    transactions.set(new TransactionLocal(true, readOnly));
-                } else {
-                    transactionLocal.setBegin(true);
-                    transactionLocal.setReadOnly(readOnly);
-                }
+                TransactionLocal transactionLocal = getTransactions().get().get(this);
+                transactionLocal.setBegin(true);
+                transactionLocal.setReadOnly(readOnly);
                 return true;
             } catch (Exception e) {
                 e.printStackTrace();
@@ -368,8 +399,8 @@ public final class ConnectionManager implements IConnectionManager {
      */
     @Override
     public boolean isTransactioning() {
-        TransactionLocal transactionLocal = transactions.get();
-        return transactionLocal != null && transactionLocal.getBegin();
+        TransactionLocal transactionLocal = getTransactions().get().get(this);
+        return transactionLocal != null && transactionLocal.getBegin() && this.equals(transactionLocal.getConnectionManager());
     }
 
     /**
@@ -378,7 +409,7 @@ public final class ConnectionManager implements IConnectionManager {
      */
     @Override
     public boolean isTransReadOnly() {
-        TransactionLocal transactionLocal = transactions.get();
+        TransactionLocal transactionLocal = getTransactions().get().get(this);
         return transactionLocal != null && transactionLocal.getReadOnly();
     }
 
@@ -387,16 +418,22 @@ public final class ConnectionManager implements IConnectionManager {
      */
     @Override
     public void commitTransaction() {
-        Connection connection = connections.get().get(dataSource);
+        Map<ConnectionManager, Map<DataSource, Connection>> mdcMap = getConnections().get();
+        Connection connection = mdcMap.get(this).get(dataSource);
         if (connection != null) {
-            if (isTransactioning()) {
+            if ( isTransactioning() ) {
                 try {
                     log.debug("master connection close  {}", Thread.currentThread().getName());
-                    connections.remove();
-                    transactions.remove();
                     connection.commit();
                     connection.setAutoCommit(true);
                     connection.close();
+
+                    mdcMap.remove(this);
+                    if (mdcMap.size() == 0) {
+                        connections.remove();
+                    }
+                    transactions.remove();
+
                 } catch (Exception e) {
                     e.printStackTrace();
                     throw new IllegalStateException(e);
@@ -412,22 +449,31 @@ public final class ConnectionManager implements IConnectionManager {
      */
     @Override
     public void rollbackTransaction() {
-        Connection connection = connections.get().get(dataSource);
-        if (connection != null) {
-            if (isTransactioning()) {
-                try {
-                    log.debug("master connection close  {}", Thread.currentThread().getName());
-                    connections.remove();
-                    transactions.remove();
-                    connection.rollback();
-                    connection.setAutoCommit(true);
-                    connection.close();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    throw new IllegalStateException(e);
+        Map<ConnectionManager, Map<DataSource, Connection>> mdcMap = getConnections().get();
+        Map<DataSource, Connection> dcMap = mdcMap.get(this);
+        if (dcMap != null) {
+            Connection connection = dcMap.get(dataSource);
+            if (connection != null) {
+                if ( isTransactioning() ) {
+                    try {
+                        log.debug("master connection close  {}", Thread.currentThread().getName());
+                        connection.rollback();
+                        connection.setAutoCommit(true);
+                        connection.close();
+
+                        mdcMap.remove(this);
+                        if (mdcMap.size() == 0) {
+                            connections.remove();
+                        }
+                        transactions.remove();
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        throw new IllegalStateException(e);
+                    }
+                } else {
+                    closeConnection();
                 }
-            } else {
-                closeConnection();
             }
         }
     }

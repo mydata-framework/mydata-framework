@@ -15,6 +15,8 @@ public class TransactionLocal {
      */
     private Boolean readOnly = false;
 
+    private ConnectionManager connectionManager;
+
     public Boolean getBegin() {
         return begin;
     }
@@ -27,10 +29,11 @@ public class TransactionLocal {
         return readOnly;
     }
 
-    public TransactionLocal(Boolean begin, Boolean readOnly) {
+    public TransactionLocal(Boolean begin, Boolean readOnly,ConnectionManager connectionManager) {
         super();
         this.begin = begin;
         this.readOnly = readOnly;
+        this.connectionManager = connectionManager;
     }
 
     public void setReadOnly(Boolean readOnly) {
@@ -41,4 +44,11 @@ public class TransactionLocal {
         super();
     }
 
+    public ConnectionManager getConnectionManager() {
+        return connectionManager;
+    }
+
+    public void setConnectionManager(ConnectionManager connectionManager) {
+        this.connectionManager = connectionManager;
+    }
 }
