@@ -86,4 +86,10 @@ public interface IConnectionManager {
      */
     String getDb();
 
+    /**
+     * 14 get connectionManager name
+     * @return
+     */
+    String getConnectionManagerName();
+
 }

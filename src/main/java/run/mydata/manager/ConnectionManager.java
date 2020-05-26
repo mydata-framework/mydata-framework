@@ -41,6 +41,8 @@ public final class ConnectionManager implements IConnectionManager {
     private DataSource dataSource;
     //read dbs
     private List<DataSource> readDataSources;
+    //connection name
+    private String connectionManagerName;
 
     //domain class mapping table info properties info
     //key: tableClass value : (key: tableName, value: properties)
@@ -357,15 +359,33 @@ public final class ConnectionManager implements IConnectionManager {
     @Override
     public void closeConnection() {
         if ( !isTransactioning() ) {
-            Connection connection = getConnections().get().get(this).get(dataSource);
-            if (connection != null) {
-                try {
-                    log.debug("master connection close  {}", Thread.currentThread().getName());
-                    getConnections().remove();
-                    connection.close();
-                } catch (Exception e) {
-                    e.printStackTrace();
+            Map<ConnectionManager, Map<DataSource, Connection>> mdcMap = connections.get();
+            if (mdcMap != null && mdcMap.size() > 0) {
+                Map<DataSource, Connection> dcMap = mdcMap.get(this);
+                if (dcMap != null && dcMap.size() > 0) {
+                    Connection connection = dcMap.get(dataSource);
+                    if (connection != null) {
+                        try {
+                            log.debug("master connection close  {}", Thread.currentThread().getName());
+                            connection.close();
+
+                            dcMap.remove(dataSource);
+                            mdcMap.remove(this);
+                            if (mdcMap.size() == 0) {
+                                connections.remove();
+                            }
+                        } catch (Exception e) {
+                            connections.remove();
+                            e.printStackTrace();
+                        }
+                    }else {
+                        connections.remove();
+                    }
+                }else {
+                    connections.remove();
                 }
+            } else {
+                connections.remove();
             }
         }
         closeReadconnection();
@@ -511,5 +531,12 @@ public final class ConnectionManager implements IConnectionManager {
         this.db=db;
     }
 
+    @Override
+    public String getConnectionManagerName() {
+        return connectionManagerName;
+    }
 
+    public void setConnectionManagerName(String connectionManagerName) {
+        this.connectionManagerName = connectionManagerName;
+    }
 }
