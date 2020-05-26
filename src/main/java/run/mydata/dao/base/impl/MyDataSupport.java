@@ -767,19 +767,38 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public Date getMinDate(Set<Param> pms, String property) {
-        return getDateFuncValue(pms, property, StatisticsType.MIN);
+        return getDateFuncValue(true, pms, property, StatisticsType.MIN);
+    }
+
+    @Override
+    public Date getMinDateFromMaster(Set<Param> pms, String property) {
+        return getDateFuncValue(false, pms, property, StatisticsType.MIN);
     }
 
     @Override
     public Date getMaxDate(Set<Param> pms, String property) {
-        return getDateFuncValue(pms, property, StatisticsType.MAX);
+        return getDateFuncValue(true, pms, property, StatisticsType.MAX);
+    }
+
+    @Override
+    public Date getMaxDateFromMaster(Set<Param> pms, String property) {
+        return getDateFuncValue(false, pms, property, StatisticsType.MAX);
     }
 
     @Override
     public <T> T nativeQuery(String sql, Object[] pms, Class<T> resultClass) {
+        return nativeQuery(true, sql, pms, resultClass);
+    }
+
+    @Override
+    public <T> T nativeQueryFromMaster(String sql, Object[] pms, Class<T> resultClass) {
+        return nativeQuery(false, sql, pms, resultClass);
+    }
+
+    private <T> T nativeQuery(Boolean isRead,String sql, Object[] pms, Class<T> resultClass) {
         try {
             T t = getT(resultClass);
-            PreparedStatement st = getPreparedStatement(sql, pms);
+            PreparedStatement st = getPreparedStatement(isRead, sql, pms);
             if (this.isShowSql) { log.error(st.toString()); }
             ResultSet rs = st.executeQuery();
             if (t instanceof String || t instanceof Number || t instanceof Boolean || t instanceof Date) {
@@ -807,9 +826,18 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public <T> List<T> nativeQueryList(String sql, Object[] pms, Class<T> resultClass){
+        return nativeQueryList(true, sql, pms, resultClass);
+    }
+
+    @Override
+    public <T> List<T> nativeQueryListFromMaster(String sql, Object[] pms, Class<T> resultClass){
+        return nativeQueryList(false, sql, pms, resultClass);
+    }
+
+    private <T> List<T> nativeQueryList(Boolean isRead,String sql, Object[] pms, Class<T> resultClass){
         try {
             T t = getT(resultClass);
-            PreparedStatement st = getPreparedStatement(sql, pms);
+            PreparedStatement st = getPreparedStatement(isRead, sql, pms);
             if (this.isShowSql) { log.error(st.toString()); }
             ResultSet rs = st.executeQuery();
             List<T> tList = new ArrayList<>();
@@ -835,14 +863,23 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public <T> PageData<T> nativeQueryPage(int curPage, int pageSize, String sql, Object[] pms, Class<T> result){
+        return nativeQueryPage(true, curPage, pageSize, sql, pms, result);
+    }
+
+    @Override
+    public <T> PageData<T> nativeQueryPageFromMaster(int curPage, int pageSize, String sql, Object[] pms, Class<T> result){
+        return nativeQueryPage(false, curPage, pageSize, sql, pms, result);
+    }
+
+    private <T> PageData<T> nativeQueryPage(Boolean isRead , int curPage, int pageSize, String sql, Object[] pms, Class<T> result){
         String countSql = "SELECT COUNT(1) FROM ("+sql+") t";//KSentences.SELECT + KSentences.COMMA
-        Long totalCount = this.nativeQuery(countSql, pms, Long.class);
+        Long totalCount = this.nativeQuery(isRead, countSql, pms, Long.class);
         if (totalCount == 0) {
             return new PageData<>(curPage, pageSize, totalCount, new ArrayList<>(0));
         }
         int startIndex = (curPage - 1) * pageSize;
         String limitSql = sql+KSentences.LIMIT + startIndex + KSentences.COMMA + pageSize ;
-        List<T> dataList = nativeQueryList(limitSql , pms , result);
+        List<T> dataList = nativeQueryList(isRead, limitSql, pms, result);
         return new PageData<T>(curPage, pageSize, totalCount, dataList);
     }
 
@@ -872,19 +909,11 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return t;
     }
 
-    private PreparedStatement getPreparedStatement(String sql, Object[] pms) throws SQLException {
-//        if (this.isShowSql) {
-//            log.info(sql);
-//            if (pms!=null){
-//                for (int i = 0; i < pms.length; i++) {
-//                    log.info("param"+(i+1)+"="+pms[i].toString());
-//                }
-//            }
-//        }
+    private PreparedStatement getPreparedStatement(Boolean isRead,String sql, Object[] pms) throws SQLException {
         if (pms == null) {
             pms = new String[0];
         }
-        PreparedStatement st = this.getConnectionManager().getConnection().prepareStatement(sql);
+        PreparedStatement st = this.getConnectionManager().getConnection(isRead).prepareStatement(sql);
         if (pms != null) {
             for (int i = 1; i < pms.length + 1; i++) {
                 Object o = pms[i - 1];
@@ -1027,10 +1056,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
     }
 
-    private Date getDateFuncValue(Set<Param> pms, String property, StatisticsType st) {
+    private Date getDateFuncValue(Boolean isRead ,Set<Param> pms, String property, StatisticsType st) {
         try {
             if (isDate(property)) {
-                List<Future<QueryVo<ResultSet>>> rzts = getFunctionValues(pms, property, st);
+                List<Future<QueryVo<ResultSet>>> rzts = getFunctionValues(isRead, pms, property, st);
                 List<Timestamp> rzslist = new ArrayList<>();
                 for (Future<QueryVo<ResultSet>> f : rzts) {
                     ResultSet rs = f.get().getOv();
@@ -1068,12 +1097,21 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public Double getStatisticsValue(StatisticsType functionName ,String property , Set<Param> pms) {
+        return getStatisticsValue(true, functionName, property, pms);
+    }
+
+    @Override
+    public Double getStatisticsValueFromMaster(StatisticsType functionName ,String property , Set<Param> pms) {
+        return getStatisticsValue(false, functionName, property, pms);
+    }
+
+    private Double getStatisticsValue(Boolean isRead , StatisticsType functionName ,String property , Set<Param> pms) {
         if (property != null && functionName != null) {
             if (getCurrentTables().size() < 1) {
                 return 0d;
             }
             try {
-                List<Future<QueryVo<ResultSet>>> rzts = getFunctionValues(pms, property, functionName);
+                List<Future<QueryVo<ResultSet>>> rzts = getFunctionValues(isRead, pms, property, functionName);
                 List<Double> rzslist = new ArrayList<>();
                 for (Future<QueryVo<ResultSet>> f : rzts) {
                     ResultSet rs = f.get().getOv();
@@ -1107,7 +1145,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return 0D;
     }
 
-    private List<Future<QueryVo<ResultSet>>> getFunctionValues(Set<Param> pms, String property,StatisticsType functionName) throws SQLException {
+
+    private List<Future<QueryVo<ResultSet>>> getFunctionValues(Boolean isRead,Set<Param> pms, String property,StatisticsType functionName) throws SQLException {
         StringBuffer sb = new StringBuffer(KSentences.SELECT.getValue());
         sb.append(functionName);
         for (PropInfo p : getPropInfos()) {
@@ -1117,9 +1156,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
         }
         Set<String> tbs = getTableNamesByParams(pms);
-        List<Future<QueryVo<ResultSet>>> rzts = invokeall(true, pms, sb.toString(), tbs);
+        List<Future<QueryVo<ResultSet>>> rzts = invokeall(isRead, pms, sb.toString(), tbs);
         return rzts;
     }
+
 
     @Override
     public Long getCount(Set<Param> pms, String... distincts) {
@@ -1169,11 +1209,20 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<POJO> getAll(String... cls) {
-        return getRztPos(false, true, null, cls);
+        return getAll(true, cls);
     }
 
     @Override
-    public List<POJO> getListFromMater(Set<Param> pms, String... cls) {
+    public List<POJO> getAllFromMaster(String... cls) {
+        return getAll(false, cls);
+    }
+
+    private  List<POJO> getAll(Boolean isRead , String... cls){
+        return getRztPos(false, isRead, null, cls);
+    }
+
+    @Override
+    public List<POJO> getListFromMaster(Set<Param> pms, String... cls) {
         return getRztPos(false, false, pms, cls);
     }
 
@@ -1183,16 +1232,23 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public List<POJO> getListFromMater(Set<Param> pms, boolean isDistinct,String... cls) {
+    public List<POJO> getListFromMaster(Set<Param> pms, boolean isDistinct,String... cls) {
         return getRztPos(isDistinct, false, pms, cls);
     }
 
     @Override
     public List<POJO> getListOrderBy(Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls) {
-        if (getCurrentTables().size() < 1) {
-            return new ArrayList<>(0);
-        }
-        return getRztPos(true, 1, Integer.MAX_VALUE / getCurrentTables().size(), orderbys, pms, cls);
+        return getListOrderBy(true,pms,orderbys,cls);
+    }
+
+    @Override
+    public List<POJO> getListOrderByFromMaster(Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls){
+        return getListOrderBy(false,pms,orderbys,cls);
+    }
+
+    private List<POJO> getListOrderBy(Boolean isRead , Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls){
+        if (getCurrentTables().size() < 1) { return new ArrayList<>(0); }
+        return getRztPos(isRead, 1, Integer.MAX_VALUE / getCurrentTables().size(), orderbys, pms, cls);
     }
 
     @Override
@@ -1227,12 +1283,21 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public PageData<Object[]> getGroupPageInfo(int curPage, int pageSize, Set<Param> pms,LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
+        return getGroupPageInfo(true, curPage, pageSize, pms, orderbys, funs, groupby);
+    }
+
+    @Override
+    public PageData<Object[]> getGroupPageInfoFromMaster(int curPage, int pageSize, Set<Param> pms,LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
+        return getGroupPageInfo(false, curPage, pageSize, pms, orderbys, funs, groupby);
+    }
+
+    private PageData<Object[]> getGroupPageInfo(Boolean isRead,int curPage, int pageSize, Set<Param> pms,LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
         if (pms == null) {
             pms = new HashSet<>();
         }
-        Long groupbyCount = getGroupbyCount(new HashSet<>(pms), groupby);
+        Long groupbyCount = getGroupbyCount(isRead, new HashSet<>(pms), groupby);
         if (groupbyCount > 0) {
-            return new PageData<>(curPage, pageSize, groupbyCount, getGroupPageList(curPage, pageSize, pms ,orderbys, funs, groupby));
+            return new PageData<>(curPage, pageSize, groupbyCount, getGroupPageList(isRead, curPage, pageSize, pms, orderbys, funs, groupby));
         } else {
             return new PageData<>(curPage, pageSize, groupbyCount, new ArrayList<>(0));
         }
@@ -1240,14 +1305,16 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public Long getGroupbyCount(Set<Param> pms, String... groupby) {
-        return groupcount(true, pms, groupby);
-
+        return getGroupbyCount(true, pms, groupby);
     }
 
     @Override
     public Long getGroupbyCountFromMaster(Set<Param> pms, String... groupby) {
-        return groupcount(false, pms, groupby);
+        return getGroupbyCount(false, pms, groupby);
+    }
 
+    private Long getGroupbyCount(Boolean isRead, Set<Param> pms, String... groupby) {
+        return groupcount(isRead, pms, groupby);
     }
 
     private Set<String> getobfp(Set<Param> pms) {
@@ -1343,12 +1410,16 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<Object[]> getGroupPageList( int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
-        return grouplist(true, curPage, pageSize, orderbys, pms, funs, groupby);
+        return getGroupPageList(true, curPage, pageSize, pms, orderbys, funs, groupby);
     }
 
     @Override
     public List<Object[]> getGroupPageListFromMaster(int curPage, int pageSize,Set<Param> pms,LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
-        return grouplist(false, curPage, pageSize, orderbys, pms, funs, groupby);
+        return getGroupPageList(false, curPage, pageSize, pms, orderbys, funs, groupby);
+    }
+
+    private List<Object[]> getGroupPageList(Boolean isRead,int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
+        return grouplist(isRead, curPage, pageSize, orderbys, pms, funs, groupby);
     }
 
     private List<Object[]> grouplist(boolean readOnly, int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms, LinkedHashMap<String, String> funs, String... groupby) {
@@ -1522,37 +1593,62 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<POJO> getAllOrderBy(LinkedHashSet<OrderBy> orderbys, String... cls) {
-        if (getCurrentTables().size() < 1) {
-            return new ArrayList<>(0);
-        }
-        return getRztPos(true, 1, Integer.MAX_VALUE / getCurrentTables().size(), orderbys, null, cls);
+        return getAllOrderBy(true,orderbys,cls);
     }
 
     @Override
-    public List<POJO> getListByIdsIn(List<Serializable> ids, String... strings) {
+    public List<POJO> getAllOrderByFromMaster(LinkedHashSet<OrderBy> orderbys, String... cls) {
+        return getAllOrderBy(false,orderbys,cls);
+    }
+
+    private List<POJO> getAllOrderBy(Boolean isRead,LinkedHashSet<OrderBy> orderbys, String... cls){
+        if (getCurrentTables().size() < 1) {
+            return new ArrayList<>(0);
+        }
+        return getRztPos(isRead, 1, Integer.MAX_VALUE / getCurrentTables().size(), orderbys, null, cls);
+    }
+
+    @Override
+    public List<POJO> getListByIdsIn(List<Serializable> ids, String... cls) {
+        return this.getListByIdsIn(true, ids, cls);
+    }
+
+    @Override
+    public List<POJO> getListByIdsInFromMaster(List<Serializable> ids, String... cls) {
+        return this.getListByIdsIn(false, ids, cls);
+    }
+
+    private List<POJO> getListByIdsIn(Boolean isRead,List<Serializable> ids, String... cls) {
         if (ids != null && ids.size() > 0) {
             Set<PropInfo> pis = getPropInfos();
             for (PropInfo fd : pis) {
                 if (fd.getIsPrimarykey()) {
-                    return getRztPos(false, true, Param.getParams(new Param(fd.getPname(), ids)), strings);
+                    return getRztPos(false, isRead, Param.getParams(new Param(fd.getPname(), ids)), cls);
                 }
             }
-
         }
         return new ArrayList<>(0);
     }
 
     @Override
     public List<POJO> getListByParamIn(String propertyName, List<Serializable> vls, String... cls) {
+        return this.getListByParamIn(true,propertyName,vls,cls);
+    }
+
+    @Override
+    public List<POJO> getListByParamInFromMaster(String propertyName, List<Serializable> vls, String... cls) {
+        return this.getListByParamIn(false,propertyName,vls,cls);
+    }
+
+    private List<POJO> getListByParamIn(Boolean isRead,String propertyName, List<Serializable> vls, String... cls) {
         if (vls != null && vls.size() > 0) {
             Set<PropInfo> pis = getPropInfos();
             for (PropInfo fd : pis) {
                 if (fd.getPname().equals(propertyName)) {
-                    return getRztPos(false, true, Param.getParams(new Param(fd.getPname(), vls)), cls);
+                    return getRztPos(false, isRead, Param.getParams(new Param(fd.getPname(), vls)), cls);
                 }
             }
         }
-
         return new ArrayList<>(0);
     }
 
@@ -1569,14 +1665,17 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public POJO getById(Serializable id, String... strings) {
-        return getObjByid(true, id, strings);
+    public POJO getById(Serializable id, String... cls) {
+        return getById(true, id, cls);
     }
 
     @Override
-    public POJO getByIdFromMaster(Serializable id, String... strings) {
-        return getObjByid(false, id, strings);
+    public POJO getByIdFromMaster(Serializable id, String... cls) {
+        return getById(false, id, cls);
+    }
 
+    private POJO getById(Boolean isRead ,Serializable id, String... strings) {
+        return getObjByid(isRead, id, strings);
     }
 
     protected POJO getObjByid(Boolean isRead, Serializable id, String... strings) {
@@ -1634,7 +1733,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public POJO getOneByMaster(String propertyName, Serializable value, String... cls) {
+    public POJO getOneFromMater(String propertyName, Serializable value, String... cls) {
         return getObj(false, propertyName, value, cls);
     }
 
@@ -1671,7 +1770,16 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public POJO getOne(Set<Param> pms, String... cls) {
-        List<POJO> rzlist = getRztPos(false, true, pms, cls);
+        return this.getOne(true, pms, cls);
+    }
+
+    @Override
+    public POJO getOneFromMater(Set<Param> pms, String... cls) {
+        return this.getOne(false, pms, cls);
+    }
+
+    private POJO getOne(Boolean isRead,Set<Param> pms, String... cls) {
+        List<POJO> rzlist = getRztPos(false, isRead, pms, cls);
         if (rzlist.size() == 1) {
             return rzlist.get(0);
         }
