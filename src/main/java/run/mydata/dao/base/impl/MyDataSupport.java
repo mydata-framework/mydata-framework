@@ -424,7 +424,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
         } else {
             String type = p.getType().toString();
-            String err = String.format("POJO field type not support mapping to column , %2 ; POJO字段属性类型并不支持, %s ;", type, type);
+            String err = String.format("POJO field type not support mapping to column , %s ; POJO字段属性类型并不支持, %s ;", type, type);
             log.error(err);
             throw new IllegalStateException(err);
         }
@@ -514,7 +514,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
         } else {
             String type = p.getType().toString();
-            String err = String.format("POJO field type not support mapping to column , %2 ; POJO字段属性类型并不支持, %s ;", type, type);
+            String err = String.format("POJO field type not support mapping to column , %s ; POJO字段属性类型并不支持, %s ;", type, type);
             log.error(err);
             throw new IllegalStateException(err);
         }
@@ -1079,7 +1079,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         } else if (StatisticsType.MAX.equals(st)) {
                             return rzslist.parallelStream().max(Comparator.comparing(d -> d)).get();
                         } else {
-                            throw new IllegalArgumentException(String.format("Date type not supprot %s ; Date类型不支持 %s ;", st));
+                            throw new IllegalArgumentException(String.format("Date type not supprot %s ; Date类型不支持 %s ;", st,st));
                         }
                     }
                 } else {
