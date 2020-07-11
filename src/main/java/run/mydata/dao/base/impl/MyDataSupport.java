@@ -374,15 +374,26 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         ctsb.append("`").append(p.getCname()).append("` ");
         if (p.getType() == Integer.class) {
             ctsb.append("INT");
-        } else if (p.getType() == Float.class) {
+        }
+        else if (p.getType() == Float.class) {
             ctsb.append("FLOAT");
-        } else if (p.getType() == Long.class) {
+        }
+        else if (p.getType() == Long.class) {
             ctsb.append("BIGINT");
-        } else if (p.getType() == Double.class) {
+        }
+        else if (p.getType() == Double.class) {
             ctsb.append("Double");
-        } else if (p.getType() == Boolean.class) {
+        }
+        else if (p.getType() == Boolean.class) {
             ctsb.append("BIT");
-        } else if (p.getType() == Date.class) {
+        }
+        else if(p.getType() == Byte.class){
+            ctsb.append("TINYINT");
+        }
+        else if (p.getType() == Short.class){
+            ctsb.append("SMALLINT");
+        }
+        else if (p.getType() == Date.class) {
             try {
                 Field fd = domainClazz.getDeclaredField(p.getPname());
                 Temporal tp = fd.getAnnotation(Temporal.class);
@@ -397,19 +408,24 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 e.printStackTrace();
                 throw new IllegalStateException(e);
             }
-        } else if (p.getType() == Time.class) {
+        }
+        else if (p.getType() == Time.class) {
             ctsb.append("TIME");
-        } else if (p.getType() == Timestamp.class) {
+        }
+        else if (p.getType() == Timestamp.class) {
             ctsb.append(getTimestampType());
-        } else if (p.getType() == String.class) {
+        }
+        else if (p.getType() == String.class) {
             if (p.getIsLob()) {
                 ctsb.append("LONGTEXT");
             } else {
                 ctsb.append("VARCHAR(").append(p.getLength()).append(")");
             }
-        } else if (p.getType() == byte[].class) {
+        }
+        else if (p.getType() == byte[].class) {
             ctsb.append("LONGBLOB");
-        } else if (p.getType().isEnum()) {
+        }
+        else if (p.getType().isEnum()) {
             try {
                 Field fd = domainClazz.getDeclaredField(p.getPname());
                 Enumerated enm = fd.getAnnotation(Enumerated.class);
@@ -422,11 +438,16 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 e.printStackTrace();
                 throw new IllegalStateException(e);
             }
-        } else {
+        }
+        else {
             String type = p.getType().toString();
             String err = String.format("POJO field type not support mapping to column , %s ; POJO字段属性类型并不支持, %s ;", type, type);
             log.error(err);
             throw new IllegalStateException(err);
+        }
+
+        if ( !(p.getType() == String.class || p.getType().isEnum()) && p.getLength()!=null && p.getLength()!=255 ) {
+            ctsb.append("(").append(p.getLength()).append(")");
         }
 
         if (p.getIsPrimarykey()) {

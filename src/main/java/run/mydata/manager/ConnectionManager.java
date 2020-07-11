@@ -208,8 +208,12 @@ public final class ConnectionManager implements IConnectionManager {
                         } else {
                             info.setCname(field.getName());
                         }
-                        if (field.getType() == String.class || field.getType().isEnum()) {
+                        if ( field.getType() == String.class || field.getType().isEnum() ) {
                             info.setLength(fieldColumnAnnotation.length());
+                        }else {
+                            if (fieldColumnAnnotation.length()!=255) {
+                                info.setLength(fieldColumnAnnotation.length());
+                            }
                         }
                         if (!fieldColumnAnnotation.nullable()) {
                             info.setIsNotNull(true);
