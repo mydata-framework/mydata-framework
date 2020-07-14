@@ -254,6 +254,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     }
                 }
             }
+            //crate index
             createIndex(tableName);
         } catch (Exception e) {
             e.printStackTrace();
