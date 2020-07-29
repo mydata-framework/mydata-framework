@@ -7,8 +7,15 @@ import java.sql.Statement;
  *
  * @author Liu Tao
  */
+@FunctionalInterface
 public interface IMyDataShowSqlBean {
 
+    /**
+     * custom sql for log
+     * @param statement statement
+     * @param sql sql
+     * @return sql for log
+     */
     public String showSqlForLog(Statement statement, String sql);
 
 }

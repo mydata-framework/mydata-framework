@@ -1793,6 +1793,27 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return getObj(false, propertyName, value, cls);
     }
 
+    @Override
+    public POJO getOneFirst(String propertyName, Serializable value, String... cls){
+        List<POJO> list = this.getList(Param.getParams(new Param(propertyName,Operate.EQ,value)), cls);
+        if (list.isEmpty()) {
+            return null;
+        } else {
+            return list.get(0);
+        }
+    }
+
+    @Override
+    public POJO getOneFirstFromMater(String propertyName, Serializable value, String... cls){
+        List<POJO> list = this.getListFromMaster(Param.getParams(new Param(propertyName,Operate.EQ,value)), cls);
+        if (list.isEmpty()) {
+            return null;
+        } else {
+            return list.get(0);
+        }
+    }
+
+
     private POJO getObj(Boolean isRead, String propertyName, Serializable value, String... cls) {
         try {
             Entry<String, LinkedHashSet<PropInfo>> tbimp = ConnectionManager.getTbinfo(domainClazz).entrySet().iterator().next();
@@ -1832,6 +1853,26 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     @Override
     public POJO getOneFromMater(Set<Param> pms, String... cls) {
         return this.getOne(false, pms, cls);
+    }
+
+    @Override
+    public POJO getOneFirst(Set<Param> pms, String... cls){
+        List<POJO> list = this.getList(pms, cls);
+        if (list.isEmpty()) {
+            return null;
+        } else {
+            return list.get(0);
+        }
+    }
+
+    @Override
+    public POJO getOneFirstFromMater(Set<Param> pms, String... cls){
+        List<POJO> list = this.getListFromMaster(pms, cls);
+        if (list.isEmpty()) {
+            return null;
+        } else {
+            return list.get(0);
+        }
     }
 
     private POJO getOne(Boolean isRead,Set<Param> pms, String... cls) {

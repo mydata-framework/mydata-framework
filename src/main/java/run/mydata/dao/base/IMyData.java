@@ -152,6 +152,16 @@ public interface IMyData<POJO> {
     POJO getOneFromMater(String propertyName, Serializable value, String... cls);
 
     /**
+     *  根据一个限定条件查询对象,如果有多条返回 第一个; ( 用于查询逻辑应该是到一个,返回可有存在多个的情况 )
+     * @param propertyName
+     * @param value
+     * @param cls
+     * @return
+     */
+    POJO getOneFirst(String propertyName, Serializable value, String... cls);
+    POJO getOneFirstFromMater(String propertyName, Serializable value, String... cls);
+
+    /**
      * 根据多个限定条件查询对象  如果有多条返回 null
      * @param pms SELECT cls FROM TABLE WHERE pms .
      * @param cls NULL is SELECT * FROM TABLE WHERE pms .
@@ -159,6 +169,15 @@ public interface IMyData<POJO> {
      */
     POJO getOne(Set<Param> pms, String... cls);
     POJO getOneFromMater(Set<Param> pms, String... cls);
+
+    /**
+     * 根据多个限定条件查询对象,如果有多条返回 第一个; ( 用于查询逻辑应该是到一个,返回可有存在多个的情况 )
+     * @param pms SELECT cls FROM TABLE WHERE pms .
+     * @param cls cls NULL is SELECT * FROM TABLE WHERE pms .
+     * @return
+     */
+    POJO getOneFirst(Set<Param> pms, String... cls);
+    POJO getOneFirstFromMater(Set<Param> pms, String... cls);
 
     /**
      * 不排序分页查询数据集合 性能好
