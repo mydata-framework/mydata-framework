@@ -7,19 +7,20 @@ import javax.annotation.Resource;
 
 /**
  * MyData
- * @author Liu Tao
+ *
  * @param <POJO> .
+ * @author Liu Tao
  */
 public class MyData<POJO> extends MyDataSupport<POJO> {
 
-    private @Resource
-    IConnectionManager connectionManager;
+    @Resource
+    private IConnectionManager connectionManager;
 
     public MyData() {
     }
 
     public MyData(IConnectionManager connectionManager) {
-        this.connectionManager=connectionManager;
+        this.connectionManager = connectionManager;
     }
 
     public void setConnectionManager(IConnectionManager connectionManager) {

@@ -1,5 +1,7 @@
 package run.mydata.manager;
 
+import run.mydata.dao.beans.IMyDataShowSqlBean;
+
 import java.sql.Connection;
 
 /**

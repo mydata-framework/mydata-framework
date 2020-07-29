@@ -1,5 +1,7 @@
 package run.mydata.config;
 
+import run.mydata.dao.beans.IMyDataShowSqlBean;
+import run.mydata.dao.beans.MyDataShowSqlBean;
 import run.mydata.manager.ConnectionManager;
 import run.mydata.manager.IConnectionManager;
 import run.mydata.manager.TransManager;
@@ -47,6 +49,11 @@ public class MyDataConfig {
         TransManager trans = new TransManager();
         trans.setConnectionManager(connectionManager);
         return trans;
+    }
+
+    @Bean
+    public IMyDataShowSqlBean myDataShowSqlBean(){
+        return new MyDataShowSqlBean();
     }
 
 }
