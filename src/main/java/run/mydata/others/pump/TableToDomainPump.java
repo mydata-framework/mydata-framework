@@ -96,12 +96,20 @@ public class TableToDomainPump implements ApplicationContextAware {
         }
     }
 
-
     public void pump(PumpConfig pumpConfig) throws Exception {
+        IConnectionManager connectionManager = applicationContext.getBean(IConnectionManager.class);
+        this.pump(pumpConfig, connectionManager);
+    }
+
+    public void pump(PumpConfig pumpConfig, IConnectionManager connectionManager) throws Exception {
+        this.pump(pumpConfig, connectionManager.getConnection());
+    }
+
+    public void pump(PumpConfig pumpConfig, Connection conn) throws Exception {
         String domainPackageTarget = pumpConfig.getPackageTarget();
 
         if (domainPackageTarget == null || domainPackageTarget.trim().length() == 0) {
-            throw new IllegalArgumentException(" PumpConfig domainPackageTarget is Empty; Domain存放目录不能未空; ");
+            throw new IllegalArgumentException(" PumpConfig domainPackageTarget can not be Empty; Domain存放目录不能未空; ");
         } else {
             String packages = domainPackageTarget.replaceAll("\\.", "/");
             domainPackageTarget = TableToDomainPump.class.getResource("/").getPath().replace("/target/classes/", "/src/main/java/" + packages);
@@ -110,8 +118,7 @@ public class TableToDomainPump implements ApplicationContextAware {
         //table name
         List<String> allTableNames = new ArrayList<>();
         List<String> NEED_PUMP_TABLE_NAMES = new ArrayList<>();
-        IConnectionManager connectionManager = applicationContext.getBean(IConnectionManager.class);
-        Connection conn = connectionManager.getConnection();
+
         PreparedStatement preparedStatement = conn.prepareStatement("SHOW TABLES");
         ResultSet rs = preparedStatement.executeQuery();
         while (rs.next()) {
