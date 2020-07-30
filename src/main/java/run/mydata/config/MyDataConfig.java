@@ -18,7 +18,8 @@ import java.util.Arrays;
  */
 public class MyDataConfig {
 
-    @Bean @ConfigurationProperties(prefix = "mydata", ignoreUnknownFields = true)
+    @Bean
+    @ConfigurationProperties(prefix = "mydata", ignoreUnknownFields = true)
     public MyDataProperties myDataProperties(){
         MyDataProperties myDataProperties = new MyDataProperties();
         return myDataProperties;

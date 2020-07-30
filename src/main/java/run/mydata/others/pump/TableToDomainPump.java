@@ -105,11 +105,9 @@ public class TableToDomainPump implements ApplicationContextAware {
         } else {
             String packages = domainPackageTarget.replaceAll("\\.", "/");
             domainPackageTarget = TableToDomainPump.class.getResource("/").getPath().replace("/target/classes/", "/src/main/java/" + packages);
-
-
         }
 
-        //表名
+        //table name
         List<String> allTableNames = new ArrayList<>();
         List<String> NEED_PUMP_TABLE_NAMES = new ArrayList<>();
         IConnectionManager connectionManager = applicationContext.getBean(IConnectionManager.class);
@@ -136,20 +134,20 @@ public class TableToDomainPump implements ApplicationContextAware {
             }
         }
 
-        //表备注
+        //table comment
         Map<String, String> TABLENAME_TABLECOMMENT_MAP = new HashMap<>();
 
         PreparedStatement prepareStatement = conn.prepareStatement("SELECT TABLE_NAME,TABLE_COMMENT FROM information_schema.TABLES WHERE table_schema=?");
         prepareStatement.setString(1, conn.getCatalog());
         ResultSet tcRs = prepareStatement.executeQuery();
         while (tcRs.next()) {
-            String table_name = tcRs.getString("TABLE_NAME");
+            String table_name = tcRs.getString("TABLE_NAME").toLowerCase();
             String table_comment = tcRs.getString("TABLE_COMMENT");
             TABLENAME_TABLECOMMENT_MAP.put(table_name.toLowerCase(), table_comment);
         }
 
 
-        //表字段信息
+        //column info
         Map<String, Map<String, DescInfo>> TABLENAME_FIELDNAME$DESCINFOMAP_MAP = new HashMap<>();
 
         for (String tableName : NEED_PUMP_TABLE_NAMES) {
@@ -191,6 +189,7 @@ public class TableToDomainPump implements ApplicationContextAware {
         }
 
 
+        //java class
         for (Map.Entry<String, Map<String, DescInfo>> entry : TABLENAME_FIELDNAME$DESCINFOMAP_MAP.entrySet()) {
             StringBuilder sb = new StringBuilder();
             String table_name = entry.getKey();
@@ -209,15 +208,12 @@ public class TableToDomainPump implements ApplicationContextAware {
 
             //sb.append("import java.math.*;\n\n");
 
-            sb.append("/***\n");
+            sb.append("/**\n");
             sb.append(" * " + table_Comment + "\n");
             sb.append(" * @author Mydata \n");
             sb.append(" */\n");
             sb.append("@Table(name = \"" + table_name + "\")\n");
             if (table_Comment != null && table_Comment.trim().length() != 0) {
-                sb.append("@TableComment(\"" + table_Comment + "\")\n");
-            }
-            if (pumpConfig.getUseLombok()) {
                 sb.append("@TableComment(\"" + table_Comment + "\")\n");
             }
             if (pumpConfig.getUseLombok()) {
@@ -229,8 +225,8 @@ public class TableToDomainPump implements ApplicationContextAware {
 
             StringBuffer get$setSb = new StringBuffer();
             for (Map.Entry<String, DescInfo> field_name$descinfo_en : FIELD_NAME$DESCINFO_MAP.entrySet()) {
-                //String field_name = field_name$descinfo_en.getKey();
                 DescInfo desc_info = field_name$descinfo_en.getValue();
+                //private String name;
                 String line = resolverDescInfoToLine(desc_info, pumpConfig.getToHump());
                 get$setSb.append(resolverDescInfoToGetSetLine(pumpConfig.getToHump(), desc_info));
                 sb.append(line);
@@ -275,7 +271,7 @@ public class TableToDomainPump implements ApplicationContextAware {
         sb.append("        return " + loReField + ";\n");
         sb.append("    }\n\n");
 
-        sb.append("    public " + resolverType(type) + " set" + upReField + "(" + typeName + " " + loReField + ") {\n");
+        sb.append("    public void set" + upReField + "(" + typeName + " " + loReField + ") {\n");
         sb.append("        this." + loReField + "=" + loReField + ";\n");
         sb.append("    }\n\n");
 
@@ -288,12 +284,6 @@ public class TableToDomainPump implements ApplicationContextAware {
     }
 
     private String resolverDescInfoToLine(DescInfo descInfo, Boolean toHump) {
-        //map.put("Field", Field);
-        //map.put("Type", Type);
-        //map.put("Null", Null);
-        //map.put("Key", Key);
-        //map.put("Default", Default);
-        //map.put("Extra", Extra);
         String $Column = resolverFieldColumnAnnos(descInfo);
         String private_String_name_$ = resolverFieldType(descInfo.getField(), descInfo.getType(), toHump);
         return $Column + private_String_name_$;
@@ -306,7 +296,7 @@ public class TableToDomainPump implements ApplicationContextAware {
 
     private String resolverField(Boolean toHump, String Field) {
         if (toHump) {
-            return this.humpToLine2(Field);
+            return this.lineToHump(Field);
         } else {
             return Field;
         }
@@ -320,6 +310,10 @@ public class TableToDomainPump implements ApplicationContextAware {
 
     private String resolverFieldColumnAnnos(DescInfo descInfo) {
         StringBuilder sb = new StringBuilder();
+
+        if (descInfo.getComment() != null && descInfo.getComment().trim().length() != 0) {
+            sb.append("    /** " + descInfo.getComment() + " */ \n");
+        }
 
         if (descInfo.getKey() != null && descInfo.getKey().trim().length() != 0 && descInfo.getKey().toUpperCase().startsWith("PRI")) {
             sb.append("    @Id \n");
@@ -336,14 +330,26 @@ public class TableToDomainPump implements ApplicationContextAware {
                 sb.append(", unique = true");
             }
             if (descInfo.getType().contains("(")) {
-                String type = descInfo.getType();
-                String length = descInfo.getType().substring(type.indexOf("(") + 1, type.indexOf(")"));
-                sb.append(", length = " + length);
+                if (!descInfo.getType().startsWith(TypeEnum.Boolean.type)) {
+                    String type = descInfo.getType();
+                    String length = descInfo.getType().substring(type.indexOf("(") + 1, type.indexOf(")"));
+                    sb.append(", length = " + length);
+                }
             }
             if (descInfo.getNulll().toUpperCase().startsWith("NO")) {
                 sb.append(", nullable = false");
             }
             sb.append(")\n");
+
+            if (descInfo.getType().startsWith(TypeEnum.Date.type)) {
+                sb.append("    @Temporal(TemporalType.DATE)\n");
+            } else if (descInfo.getType().startsWith(TypeEnum.DateDatetime.type)) {
+                sb.append("    @Temporal(TemporalType.TIMESTAMP)\n");
+            } else if (descInfo.getType().startsWith(TypeEnum.DateTimestamp.type)) {
+                sb.append("    @Temporal(TemporalType.TIMESTAMP)\n");
+            } else if (descInfo.getType().startsWith(TypeEnum.Time.type)) {
+                sb.append("    @Temporal(TemporalType.TIME)\n");
+            }
 
             if (descInfo.getComment() != null && descInfo.getComment().trim().length() != 0) {
                 sb.append("    @ColumnComment(\"" + descInfo.getComment() + "\") \n");
