@@ -94,4 +94,16 @@ public interface IConnectionManager {
      */
     String getConnectionManagerName();
 
+    /**
+     * 15 set IMyDataShowSqlBean
+     * @param myDataShowSqlBean .
+     */
+    void SetMyDataShowSqlBean(IMyDataShowSqlBean myDataShowSqlBean);
+
+    /**
+     * 16 get IMyDataShowSqlBean
+     * @return IMyDataShowSqlBean
+     */
+    IMyDataShowSqlBean getMyDataShowSqlBean();
+
 }

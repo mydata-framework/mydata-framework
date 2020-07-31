@@ -2,7 +2,6 @@ package run.mydata.dao.base.impl;
 
 import run.mydata.annotation.ColumnRule;
 import run.mydata.dao.base.IMyData;
-import run.mydata.dao.beans.IMyDataShowSqlBean;
 import run.mydata.em.*;
 import run.mydata.exception.ObjectOptimisticLockingFailureException;
 import run.mydata.helper.*;
@@ -13,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.lang.invoke.MethodHandles;
@@ -77,8 +75,6 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     //domain class key , already split table names value, map
     private volatile static ConcurrentHashMap<Class<?>, ConcurrentSkipListSet<String>> DOMAINCLASS_TABLES_MAP = new ConcurrentHashMap<Class<?>, ConcurrentSkipListSet<String>>();
 
-    @Resource
-    private IMyDataShowSqlBean myDataShowSqlBean;
 
     @PostConstruct
     public void init() {
@@ -103,7 +99,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             this.setSqlType(pps);
         } catch (Exception e) {
             e.printStackTrace();
-            log.info("[ MyData init error]");
+            log.info("[ MyData init error ]");
         }
     }
 
@@ -129,7 +125,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         String createseqsql = String.format("%s %s", KSentences.CREATE_SEQUENCE, seqName);
                         PreparedStatement preparedStatement = connection.prepareStatement(createseqsql);
                         if (this.isShowSql) {
-                            log.info(myDataShowSqlBean.showSqlForLog(preparedStatement,createseqsql));
+                            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,createseqsql));
                         }
                         preparedStatement.executeUpdate();
                     }
@@ -148,7 +144,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         String createIdTableSql = String.format("%s %s(SID BIGINT PRIMARY  KEY AUTO_INCREMENT)", KSentences.CREATE_TABLE, idTableName);
                         PreparedStatement preparedStatement = connection.prepareStatement(createIdTableSql);
                         if (this.isShowSql) {
-                            log.info(myDataShowSqlBean.showSqlForLog(preparedStatement,createIdTableSql));/*log.info(createIdTableSql);*/
+                            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,createIdTableSql));/*log.info(createIdTableSql);*/
                         }
                         preparedStatement .executeUpdate();
                         //if global id table has init value , use this value of init, this value length < 10
@@ -167,7 +163,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                             String insertIdTableSql = genInsertIdTableSql(idTableName, opst.get().getGeneratorValueAnnoGeneratorVal().trim());
                             PreparedStatement preparedStatement1 = connection.prepareStatement(insertIdTableSql);
                             if (this.isShowSql){
-                                log.info(myDataShowSqlBean.showSqlForLog(preparedStatement1,insertIdTableSql)); /*log.info(insertIdTableSql);*/
+                                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement1,insertIdTableSql)); /*log.info(insertIdTableSql);*/
                             }
                             preparedStatement1.executeUpdate();
                         }
@@ -215,7 +211,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                     String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(), getPrecisionDatatype(pi.getType().getSimpleName()));
                                     PreparedStatement preparedStatement = connection.prepareStatement(altertablesql);
                                     if (this.isShowSql) {
-                                        log.info(myDataShowSqlBean.showSqlForLog(preparedStatement,altertablesql));/*log.info(altertablesql);*/
+                                        log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,altertablesql));/*log.info(altertablesql);*/
                                     }
                                     preparedStatement.executeUpdate();
                                 }
@@ -230,7 +226,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                         String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(), getTimestampType());
                                         PreparedStatement preparedStatement = connection.prepareStatement(altertablesql);
                                         if (this.isShowSql) {
-                                            log.info(myDataShowSqlBean.showSqlForLog(preparedStatement,altertablesql));/*log.info(altertablesql);*/
+                                            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,altertablesql));/*log.info(altertablesql);*/
                                         }
                                         preparedStatement.executeUpdate();
                                     }
@@ -261,7 +257,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                 String sql = String.format(ALTER_TABLE_S_ADD_S, t, avl);
                                 PreparedStatement preparedStatement = connection.prepareStatement(sql);
                                 if (this.isShowSql) {
-                                    log.info(myDataShowSqlBean.showSqlForLog(preparedStatement,sql));/*log.info(sql);*/
+                                    log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,sql));/*log.info(sql);*/
                                 }
                                 preparedStatement.executeUpdate();
                             } catch (Throwable e) {
@@ -336,7 +332,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             //execute create table sql
             PreparedStatement preparedStatement = this.getConnectionManager().getConnection().prepareStatement(csql);
             if (this.isShowSql){
-                log.info(myDataShowSqlBean.showSqlForLog(preparedStatement,csql));/*log.info(csql);*/
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,csql));/*log.info(csql);*/
             }
             preparedStatement.executeUpdate();
             //create table index
@@ -379,6 +375,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return "";
     }
+    //`name` varchanr(255) null default null comment '',
     protected String getColumnLine(PropInfo p) {
         if ("MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
             return getMysqlColumnLine(p);
@@ -411,8 +408,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         else if (p.getType() == Short.class){
             ctsb.append("SMALLINT");
-        }
-        else if (p.getType() == Date.class) {
+        } else if (p.getType() == BigDecimal.class) {
+            ctsb.append("DECIMAL");
+        } else if (p.getType() == Date.class) {
             try {
                 Field fd = domainClazz.getDeclaredField(p.getPname());
                 Temporal tp = fd.getAnnotation(Temporal.class);
@@ -427,24 +425,19 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 e.printStackTrace();
                 throw new IllegalStateException(e);
             }
-        }
-        else if (p.getType() == Time.class) {
+        } else if (p.getType() == Time.class) {
             ctsb.append("TIME");
-        }
-        else if (p.getType() == Timestamp.class) {
+        } else if (p.getType() == Timestamp.class) {
             ctsb.append(getTimestampType());
-        }
-        else if (p.getType() == String.class) {
+        } else if (p.getType() == String.class) {
             if (p.getIsLob()) {
                 ctsb.append("LONGTEXT");
             } else {
                 ctsb.append("VARCHAR(").append(p.getLength()).append(")");
             }
-        }
-        else if (p.getType() == byte[].class) {
+        } else if (p.getType() == byte[].class) {
             ctsb.append("LONGBLOB");
-        }
-        else if (p.getType().isEnum()) {
+        } else if (p.getType().isEnum()) {
             try {
                 Field fd = domainClazz.getDeclaredField(p.getPname());
                 Enumerated enm = fd.getAnnotation(Enumerated.class);
@@ -457,16 +450,23 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 e.printStackTrace();
                 throw new IllegalStateException(e);
             }
-        }
-        else {
+        } else {
             String type = p.getType().toString();
             String err = String.format("POJO field type not support mapping to column , %s ; POJO字段属性类型并不支持, %s ;", type, type);
             log.error(err);
             throw new IllegalStateException(err);
         }
 
-        if ( !(p.getType() == String.class || p.getType().isEnum()) && p.getLength()!=null && p.getLength()!=255 ) {
+        if ( !(p.getType() == String.class || p.getType().isEnum()) && p.getLength()!=null && p.getLength()!=255 && p.getType() != BigDecimal.class ) {
             ctsb.append("(").append(p.getLength()).append(")");
+        }
+
+        if (p.getType() == BigDecimal.class) {
+            if (p.getMoreLength() == null || p.getMoreLength().trim().length() == 0) {
+                ctsb.append("(10,4)");
+            } else {
+                ctsb.append("(").append(p.getMoreLength()).append(")");
+            }
         }
 
         if (p.getIsPrimarykey()) {
@@ -606,7 +606,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                             //execute index inset
                             PreparedStatement preparedStatement = this.getConnectionManager().getConnection().prepareStatement(sql);
                             if (this.isShowSql) {
-                                log.info(myDataShowSqlBean.showSqlForLog(preparedStatement,sql)); /*log.info(sql);*/
+                                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,sql)); /*log.info(sql);*/
                             }
                             preparedStatement.executeUpdate();
                         } catch (Throwable e) {
@@ -770,7 +770,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     PreparedStatement statement = getStatementBySql(false, sql);
                     setWhereSqlParamValue(pms, statement, setUpdateNewValues(newValues, statement));
                     if (this.isShowSql) {
-                        log.info(myDataShowSqlBean.showSqlForLog(statement,sql));/*log.info(sql);*/
+                        log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));/*log.info(sql);*/
                     }
                     ttc += statement.executeUpdate();
                 }
@@ -844,7 +844,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             T t = getT(resultClass);
             PreparedStatement st = getPreparedStatement(isRead, sql, pms);
             if (this.isShowSql) {
-                log.info(myDataShowSqlBean.showSqlForLog(st,sql));
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(st,sql));
             }
             ResultSet rs = st.executeQuery();
             if (t instanceof String || t instanceof Number || t instanceof Boolean || t instanceof Date) {
@@ -885,7 +885,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             T t = getT(resultClass);
             PreparedStatement st = getPreparedStatement(isRead, sql, pms);
             if (this.isShowSql) {
-                log.info(myDataShowSqlBean.showSqlForLog(st,sql));
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(st,sql));
             }
             ResultSet rs = st.executeQuery();
             List<T> tList = new ArrayList<>();
@@ -1096,7 +1096,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 }
             }
             if (this.isShowSql) {
-                log.info(myDataShowSqlBean.showSqlForLog(st,sql));
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(st,sql));
             }
             return st.executeUpdate();
         } catch (SQLException e) {
@@ -1427,7 +1427,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             setWhereSqlParamValue(hvcs, statement, ix);
 
             if (this.isShowSql) {
-                log.info(myDataShowSqlBean.showSqlForLog(statement,sql));/*log.info(sql);*/
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));/*log.info(sql);*/
             }
             ResultSet rs = statement.executeQuery();
             if (rs.next()) {
@@ -1598,7 +1598,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
             setWhereSqlParamValue(hvcs, statement, ix);
             if (this.isShowSql) {
-                log.info(myDataShowSqlBean.showSqlForLog(statement,selectPagingSql));/*log.info(selectPagingSql);*/
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,selectPagingSql));/*log.info(selectPagingSql);*/
             }
             ResultSet resultSet = statement.executeQuery();
             return getObjectList(resultSet);
@@ -1777,7 +1777,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         PreparedStatement prepare = getStatementBySql(isRead, sql);
         setWhereSqlParamValue(pms, prepare);
         if (this.isShowSql) {
-            log.info(myDataShowSqlBean.showSqlForLog(prepare,sql));/*log.info(sql); */
+            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(prepare,sql));/*log.info(sql); */
         }
         ResultSet rs = prepare.executeQuery();
         return getRztObject(rs, strings);
@@ -1958,7 +1958,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         PreparedStatement statement = autoincrement?connection.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS):connection.prepareStatement(insertSql);
         setParamVal(pojo, fields, tbe.getValue(), statement, this.getConnectionManager().getConnection());
         if (this.isShowSql) {
-            log.info(myDataShowSqlBean.showSqlForLog(statement,insertSql)); /*log.info(insertSql);*/
+            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,insertSql)); /*log.info(insertSql);*/
         }
         int cc = statement.executeUpdate();
         if (autoincrement) {
@@ -2172,7 +2172,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 PreparedStatement statement = getStatementBySql(false, sql);
                 setWhereSqlParamValue(pms, statement);
                 if (this.isShowSql) {
-                    log.info(myDataShowSqlBean.showSqlForLog(statement,sql));/*log.info(sql);*/
+                    log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));/*log.info(sql);*/
                 }
                 ttc += statement.executeUpdate();
             }
@@ -2372,7 +2372,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             PreparedStatement statement = getStatementBySql(isRead, sql);
             setWhereSqlParamValue(params, statement);
             if (this.isShowSql){//if (this.isShowSql) { log.info(sql); }
-                log.info(myDataShowSqlBean.showSqlForLog(statement,sql));
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));
             }
             pss.add(new QueryVo<PreparedStatement>(tn, statement));
         }
@@ -2506,7 +2506,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         PreparedStatement statement = getStatementBySql(isRead, sql);
         setWhereSqlParamValue(params, statement);
         if (this.isShowSql) {
-            log.info(myDataShowSqlBean.showSqlForLog(statement,sql));/*log.info(sql);*/
+            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));/*log.info(sql);*/
         }
         return getRztObject(statement.executeQuery());
     }
@@ -2515,7 +2515,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         PreparedStatement statement = getStatementBySql(isRead, sql);
         setWhereSqlParamValue(params, statement);
         if (this.isShowSql) {
-            log.info(myDataShowSqlBean.showSqlForLog(statement,sql));/*log.info(sql);*/
+            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));/*log.info(sql);*/
         }
         return getRztObject(statement.executeQuery(), strings);
     }
@@ -2651,7 +2651,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 String sql = sb.toString();
                 PreparedStatement statement = getPreParedStatement(isRead, params, sql);
                 if (this.isShowSql) {
-                    log.info(myDataShowSqlBean.showSqlForLog(statement,sql));/*log.info(sql);*/
+                    log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));/*log.info(sql);*/
                 }
                 ResultSet rs = statement.executeQuery();
                 if (rs.next()) {
@@ -2753,7 +2753,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     int i = setUpdateNewValues(newValues, statement);
                     setWhereSqlParamValue(pms, statement, i);
                     if (this.isShowSql) {
-                        log.info(myDataShowSqlBean.showSqlForLog(statement,sql));
+                        log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));
                     }
                     ttc += statement.executeUpdate();
                 }
@@ -2936,7 +2936,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         for (QueryVo<PreparedStatement> ps : pss) {
             PreparedStatement preparedStatement = ps.getOv();
             if (this.isShowSql) {
-                log.info(myDataShowSqlBean.showSqlForLog(preparedStatement,preparedStatement.toString()));
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,preparedStatement.toString()));
             }
             qcs.add(new QueryCallable(preparedStatement, ps.getTbn()));
         }
@@ -3511,11 +3511,4 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         isShowSql = showSql;
     }
 
-    public IMyDataShowSqlBean getMyDataShowSqlBean() {
-        return myDataShowSqlBean;
-    }
-
-    public void setMyDataShowSqlBean(IMyDataShowSqlBean myDataShowSqlBean) {
-        this.myDataShowSqlBean = myDataShowSqlBean;
-    }
 }

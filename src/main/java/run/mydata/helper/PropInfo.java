@@ -45,6 +45,8 @@ public class PropInfo {
     private String comment;
     //是否是version
     private Boolean version=false;
+    //双精度长度定义,例如 DECIMAL(8,2)
+    private String moreLength;
 
     public String getPname() {
         return pname;
@@ -188,5 +190,13 @@ public class PropInfo {
 
     public void setVersion(Boolean version) {
         this.version = version;
+    }
+
+    public String getMoreLength() {
+        return moreLength;
+    }
+
+    public void setMoreLength(String moreLength) {
+        this.moreLength = moreLength;
     }
 }

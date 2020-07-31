@@ -1,8 +1,11 @@
 package run.mydata.manager;
 
 import run.mydata.annotation.ColumnComment;
+import run.mydata.annotation.ColumnMoreLength;
 import run.mydata.annotation.ColumnRule;
 import run.mydata.annotation.MyIndex;
+import run.mydata.dao.beans.IMyDataShowSqlBean;
+import run.mydata.dao.beans.MyDataShowSqlBeanDefault;
 import run.mydata.helper.PropInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +46,8 @@ public final class ConnectionManager implements IConnectionManager {
     private List<DataSource> readDataSources;
     //connection name
     private String connectionManagerName;
+    //show sql ben
+    private IMyDataShowSqlBean myDataShowSqlBean;
 
     //domain class mapping table info properties info
     //key: tableClass value : (key: tableName, value: properties)
@@ -259,6 +264,10 @@ public final class ConnectionManager implements IConnectionManager {
                             String error = domainClass.getName()+" @Version Type Must Be Long ";
                             throw new IllegalArgumentException(error);
                         }
+                    }
+                    if (field.isAnnotationPresent(ColumnMoreLength.class)) {
+                        ColumnMoreLength columnMoreLength = field.getAnnotation(ColumnMoreLength.class);
+                        info.setMoreLength(columnMoreLength.length());
                     }
                     tableColumnInfos.add(info);
                 }
@@ -542,5 +551,18 @@ public final class ConnectionManager implements IConnectionManager {
 
     public void setConnectionManagerName(String connectionManagerName) {
         this.connectionManagerName = connectionManagerName;
+    }
+
+    @Override
+    public void SetMyDataShowSqlBean(IMyDataShowSqlBean myDataShowSqlBean) {
+        this.myDataShowSqlBean = myDataShowSqlBean;
+    }
+
+    @Override
+    public IMyDataShowSqlBean getMyDataShowSqlBean() {
+        if (this.myDataShowSqlBean == null) {
+            this.myDataShowSqlBean = new MyDataShowSqlBeanDefault();
+        }
+        return this.myDataShowSqlBean;
     }
 }

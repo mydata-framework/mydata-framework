@@ -2,7 +2,7 @@ package run.mydata.dao.beans;
 
 import java.sql.Statement;
 
-public class MyDataShowSqlBean implements IMyDataShowSqlBean {
+public class MyDataShowSqlBeanDefault implements IMyDataShowSqlBean {
 
     @Override
     public String showSqlForLog(Statement statement, String inanitionSql) {
