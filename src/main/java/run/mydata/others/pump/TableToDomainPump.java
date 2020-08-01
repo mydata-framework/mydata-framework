@@ -48,7 +48,7 @@ public class TableToDomainPump implements ApplicationContextAware {
          * domain target package , as com.mydata.domain
          * domain存放目标目录
          */
-        private String packageTarget;
+        private String domainPackageTarget;
         /**
          * if use lombok , you can set true
          * domain是否使用lombok,省略了get set method
@@ -79,12 +79,12 @@ public class TableToDomainPump implements ApplicationContextAware {
             this.tableNames = tableNames;
         }
 
-        public String getPackageTarget() {
-            return packageTarget;
+        public String getDomainPackageTarget() {
+            return domainPackageTarget;
         }
 
-        public void setPackageTarget(String packageTarget) {
-            this.packageTarget = packageTarget;
+        public void setDomainPackageTarget(String domainPackageTarget) {
+            this.domainPackageTarget = domainPackageTarget;
         }
 
         public Boolean getUseLombok() {
@@ -106,7 +106,7 @@ public class TableToDomainPump implements ApplicationContextAware {
     }
 
     public void pump(PumpConfig pumpConfig, Connection conn) throws Exception {
-        String domainPackageTarget = pumpConfig.getPackageTarget();
+        String domainPackageTarget = pumpConfig.getDomainPackageTarget();
 
         if (domainPackageTarget == null || domainPackageTarget.trim().length() == 0) {
             throw new IllegalArgumentException(" PumpConfig domainPackageTarget can not be Empty; Domain存放目录不能未空; ");
@@ -203,7 +203,7 @@ public class TableToDomainPump implements ApplicationContextAware {
             String table_Comment = TABLENAME_TABLECOMMENT_MAP.get(table_name);
             String JavaName = table_nameToJavaName(table_name);
 
-            sb.append("package " + pumpConfig.getPackageTarget() + ";\n\n");
+            sb.append("package " + pumpConfig.getDomainPackageTarget() + ";\n\n");
 
             sb.append("import javax.persistence.*; \n");
             sb.append("import java.sql.Time; \n");
