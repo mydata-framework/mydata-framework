@@ -14,7 +14,7 @@ public @interface ColumnMoreLength {
 
     /**
      * example: "8,2" use for DECIMAL(8,2)
-     * @return
+     * @return .
      */
     String length();
 

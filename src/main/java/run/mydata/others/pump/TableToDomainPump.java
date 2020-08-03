@@ -109,7 +109,7 @@ public class TableToDomainPump implements ApplicationContextAware {
         String domainPackageTarget = pumpConfig.getDomainPackageTarget();
 
         if (domainPackageTarget == null || domainPackageTarget.trim().length() == 0) {
-            throw new IllegalArgumentException(" PumpConfig domainPackageTarget can not be Empty; Domain存放目录不能未空; ");
+            throw new IllegalArgumentException(" PumpConfig domainPackageTarget can not be Empty; Domain存放目录不能为空; ");
         } else {
             String packages = domainPackageTarget.replaceAll("\\.", "/");
             domainPackageTarget = TableToDomainPump.class.getResource("/").getPath().replace("/target/classes/", "/src/main/java/" + packages);

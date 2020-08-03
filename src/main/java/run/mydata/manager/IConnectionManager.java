@@ -90,7 +90,7 @@ public interface IConnectionManager {
 
     /**
      * 14 get connectionManager name
-     * @return
+     * @return .
      */
     String getConnectionManagerName();
 
@@ -102,7 +102,7 @@ public interface IConnectionManager {
 
     /**
      * 16 get IMyDataShowSqlBean
-     * @return IMyDataShowSqlBean
+     * @return IMyDataShowSqlBean .
      */
     IMyDataShowSqlBean getMyDataShowSqlBean();
 

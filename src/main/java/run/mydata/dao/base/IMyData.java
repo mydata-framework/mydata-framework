@@ -153,10 +153,10 @@ public interface IMyData<POJO> {
 
     /**
      *  根据一个限定条件查询对象,如果有多条返回 第一个; ( 用于查询逻辑应该是到一个,返回可有存在多个的情况 )
-     * @param propertyName
-     * @param value
-     * @param cls
-     * @return
+     * @param propertyName SELECT cls FROM TABLE WHERE propertyName=value .
+     * @param value .
+     * @param cls NULL is SELECT * FROM TABLE WHERE propertyName=value .
+     * @return .
      */
     POJO getOneFirst(String propertyName, Serializable value, String... cls);
     POJO getOneFirstFromMater(String propertyName, Serializable value, String... cls);
@@ -174,7 +174,7 @@ public interface IMyData<POJO> {
      * 根据多个限定条件查询对象,如果有多条返回 第一个; ( 用于查询逻辑应该是到一个,返回可有存在多个的情况 )
      * @param pms SELECT cls FROM TABLE WHERE pms .
      * @param cls cls NULL is SELECT * FROM TABLE WHERE pms .
-     * @return
+     * @return .
      */
     POJO getOneFirst(Set<Param> pms, String... cls);
     POJO getOneFirstFromMater(Set<Param> pms, String... cls);
