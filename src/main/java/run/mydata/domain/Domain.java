@@ -9,12 +9,13 @@ import java.math.BigDecimal;
 import java.util.Date;
 
 /***
- * 基础字段
+ * domain example 实体领域模型 实例
+ * this is a example for domain
  *
  * @author Liu Tao
  */
 @Table
-public class Domain extends MyDataOperationTimeEntity {
+public class Domain {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,4 +48,6 @@ public class Domain extends MyDataOperationTimeEntity {
 
     @Transient
     private String notColumn;
+
+    //get set
 }
