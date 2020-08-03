@@ -16,14 +16,7 @@ import java.util.List;
  *
  * @author tao.liu
  */
-public class DomainToDaoPump implements ApplicationContextAware {
-    private static ApplicationContext applicationContext;
-
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.applicationContext = applicationContext;
-    }
-
+public class DomainToDaoPump {
 
     public static class PumpConfig {
         //that domain package name , as com.domain
