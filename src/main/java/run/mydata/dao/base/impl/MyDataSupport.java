@@ -2371,9 +2371,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             String sql = selectpre + tn + whereSqlByParam;
             PreparedStatement statement = getStatementBySql(isRead, sql);
             setWhereSqlParamValue(params, statement);
-            if (this.isShowSql){//if (this.isShowSql) { log.info(sql); }
-                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));
-            }
+            //if (this.isShowSql){//if (this.isShowSql) { log.info(sql); }
+            //    log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));
+            //}
             pss.add(new QueryVo<PreparedStatement>(tn, statement));
         }
         return pss;
