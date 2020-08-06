@@ -38,7 +38,11 @@ public class Param{
         super();
         this.pname = pname;
         this.operators = operators;
-        this.value = value;
+        if (operators == Operate.IN) {
+            this.inValue = (List<?>) value;
+        } else {
+            this.value = value;
+        }
         this.funName = funName;
         this.cdType = cdType;
     }

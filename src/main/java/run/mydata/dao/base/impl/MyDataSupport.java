@@ -2346,6 +2346,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         if (getCurrentTables().size() < 1) {
             return new ArrayList<>(0);
         }
+        if (params.stream().anyMatch(p -> p.getOperators().equals(Operate.IN) && (p.getInValue() == null || p.getInValue().isEmpty()))) {
+            return new ArrayList<>(0);
+        }
         try {
             String selectpre = getPreSelectSql(isDistinct, strings);
             String whereSqlByParam = getWhereSqlByParam(params);
@@ -3094,7 +3097,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
         } else if (pm.getOperators().equals(Operate.IN) || pm.getOperators().equals(Operate.NOT_IN)) {
             if (pm.getInValue() == null || pm.getInValue().size() < 1) {
-                throw new IllegalArgumentException( String.format("%s IN param list value size is not zero or null! ", pm.getPname()));
+                throw new IllegalArgumentException( String.format("%s IN param list value size is not zero or null;  %s字段,IN查询条件的List不能为空;", pm.getPname(),pm.getPname()));
             }
             setcName(sb, pm, p);
             sb.append(pm.getOperators().getValue());
