@@ -2346,7 +2346,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         if (getCurrentTables().size() < 1) {
             return new ArrayList<>(0);
         }
-        if (params.stream().anyMatch(p -> p.getOperators().equals(Operate.IN) && (p.getInValue() == null || p.getInValue().isEmpty()))) {
+        if (params!=null && params.stream().anyMatch(p -> p.getOperators().equals(Operate.IN) && (p.getInValue() == null || p.getInValue().isEmpty()))) {
             return new ArrayList<>(0);
         }
         try {
