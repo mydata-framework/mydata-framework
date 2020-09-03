@@ -452,7 +452,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
         } else {
             String type = p.getType().toString();
-            String err = String.format("POJO field type not support mapping to column , %s ; POJO字段属性类型并不支持, %s ;", type, type);
+            String domainClazzName = this.domainClazz.getName();
+            String err = String.format("POJO field type not support mapping to column %s,about class %s; POJO字段属性类型并不支持 %s,关注类 %s;", type, domainClazzName, type, domainClazzName);
             log.error(err);
             throw new IllegalStateException(err);
         }
