@@ -46,7 +46,7 @@
         <aspectj.version>1.8.8</aspectj.version><!-- <aspectj.version>1.8.8</aspectj.version> -->
         <mysql.version>6.0.6</mysql.version><!-- <mysql.version>1.8.8</mysql.version> -->
         <persistence.version>1.0.2</persistence.version><!-- <persistence.version>1.8.8</persistence.version> 1.0.2-->
-        <junit.version>4.11</junit.version><!-- <persistence.version>1.8.8</persistence.version> -->
+        <junit.version>4.13.1</junit.version><!-- <persistence.version>1.8.8</persistence.version> -->
         <log4j.version>1.7.18</log4j.version><!-- <persistence.version>1.8.8</persistence.version> -->
         <spring.autoconfig.version>1.1.0.RELEASE</spring.autoconfig.version>
     </properties>
