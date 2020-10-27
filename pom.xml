@@ -6,7 +6,7 @@
 
     <groupId>run.mydata</groupId>
     <artifactId>mydata-framework</artifactId>
-    <version>8.0</version>
+    <version>9.0</version>
     <packaging>jar</packaging>
 
     <name>mydata-framework</name>

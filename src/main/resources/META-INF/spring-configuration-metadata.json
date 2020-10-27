@@ -22,6 +22,11 @@
       "sourceType": "run.mydata.config.MyDataProperties",
       "name": "mydata.db",
       "type": "java.lang.String"
+    },
+    {
+      "sourceType": "run.mydata.config.MyDataProperties",
+      "name": "mydata.connectCharset",
+      "type": "java.lang.String"
     }
   ]
 }

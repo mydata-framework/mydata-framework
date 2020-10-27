@@ -1,15 +1,15 @@
 package run.mydata.dao.base.impl;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import run.mydata.annotation.ColumnRule;
 import run.mydata.dao.base.IMyData;
 import run.mydata.em.*;
 import run.mydata.exception.ObjectOptimisticLockingFailureException;
-import run.mydata.helper.*;
 import run.mydata.helper.OrderBy;
+import run.mydata.helper.*;
 import run.mydata.manager.ConnectionManager;
 import run.mydata.manager.IConnectionManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.annotation.PostConstruct;
 import javax.persistence.*;
@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 
 /**
  * MyDataSupport
+ *
  * @param <POJO> .
  * @author Liu Tao
  */
@@ -36,9 +37,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private static Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
     //current operational domain class
-    private Class<POJO> domainClazz ;
+    private Class<POJO> domainClazz;
     //current domain class mapper table
-    private String firstTableName ;
+    private String firstTableName;
     //current connection database type name , ex MySQL Oracle
     private String dataBaseTypeName;
     //is showSql
@@ -63,6 +64,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     //connection Manager
     public abstract IConnectionManager getConnectionManager();
+
     //one table split max count
     private volatile int maxTableCount = 1024;
     private static final String ALTER_TABLE_MODIFY_COLUMN = "ALTER TABLE %s MODIFY %s %s";
@@ -83,18 +85,20 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             this.domainClazz = MyDataHelper.getDomainClassByDaoClass(this.getClass());
             this.firstTableName = MyDataHelper.getFirstTableName(this.domainClazz);
             this.dataBaseTypeName = MyDataHelper.getDataBaseTypeName(this.getConnectionManager());
-            this.tableComment=MyDataHelper.getTableColumn(this.domainClazz);
-            this.hasTableComment=this.tableComment==null?false:true;
+            this.tableComment = MyDataHelper.getTableColumn(this.domainClazz);
+            this.hasTableComment = this.tableComment == null ? false : true;
             this.tableEngine = MyDataHelper.getTableEngine(this.domainClazz);
-            this.hasTableEngine=this.tableEngine==null?false:true;
+            this.hasTableEngine = this.tableEngine == null ? false : true;
             this.tableCharset = MyDataHelper.getTableCharset(this.domainClazz);
-            this.hasTableCharset=this.tableCharset==null?false:true;
+            this.hasTableCharset = this.tableCharset == null ? false : true;
             this.isShowSql = this.getConnectionManager().isShowSql();
             this.isGenerateDdl = this.getConnectionManager().isDdl();
             //domain column field properties
             final Set<PropInfo> pps = getPropInfos();
             //if ddl , generate ddl
-            if (this.isGenerateDdl) { this.createFirstTable(pps);}
+            if (this.isGenerateDdl) {
+                this.createFirstTable(pps);
+            }
             //setting domain field mapping column type
             this.setSqlType(pps);
         } catch (Exception e) {
@@ -125,7 +129,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         String createseqsql = String.format("%s %s", KSentences.CREATE_SEQUENCE, seqName);
                         PreparedStatement preparedStatement = connection.prepareStatement(createseqsql);
                         if (this.isShowSql) {
-                            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,createseqsql));
+                            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement, createseqsql));
                         }
                         preparedStatement.executeUpdate();
                     }
@@ -144,26 +148,26 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         String createIdTableSql = String.format("%s %s(SID BIGINT PRIMARY  KEY AUTO_INCREMENT)", KSentences.CREATE_TABLE, idTableName);
                         PreparedStatement preparedStatement = connection.prepareStatement(createIdTableSql);
                         if (this.isShowSql) {
-                            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,createIdTableSql));/*log.info(createIdTableSql);*/
+                            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement, createIdTableSql));/*log.info(createIdTableSql);*/
                         }
-                        preparedStatement .executeUpdate();
+                        preparedStatement.executeUpdate();
                         //if global id table has init value , use this value of init, this value length < 10
                         Optional<PropInfo> opst =
                                 propInfos.stream().filter(
                                         id ->
                                                 id.getGeneratorValueAnnoGeneratorVal() != null
-                                                    &&
-                                                id.getGeneratorValueAnnoGeneratorVal().length() < 10
-                                                    &&
-                                                Pattern.matches("\\d+", id.getGeneratorValueAnnoGeneratorVal().trim())
+                                                        &&
+                                                        id.getGeneratorValueAnnoGeneratorVal().length() < 10
+                                                        &&
+                                                        Pattern.matches("\\d+", id.getGeneratorValueAnnoGeneratorVal().trim())
                                 ).findFirst();
                         //if has split column field, to create global id table
                         if (opst.isPresent()) {
                             //INSERT INTO TUSER_SEQ_ID SID VALUES( 10 )
                             String insertIdTableSql = genInsertIdTableSql(idTableName, opst.get().getGeneratorValueAnnoGeneratorVal().trim());
                             PreparedStatement preparedStatement1 = connection.prepareStatement(insertIdTableSql);
-                            if (this.isShowSql){
-                                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement1,insertIdTableSql)); /*log.info(insertIdTableSql);*/
+                            if (this.isShowSql) {
+                                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement1, insertIdTableSql)); /*log.info(insertIdTableSql);*/
                             }
                             preparedStatement1.executeUpdate();
                         }
@@ -187,7 +191,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 //if need split , to split
                 if (columnRule != null && columnRule.ruleType().equals(RuleType.MOD)) {
                     int maxIdleTablecount = getMaxIdleTablecount(columnRule);
-                    for (int i = 1; i < maxIdleTablecount ; i++) {
+                    for (int i = 1; i < maxIdleTablecount; i++) {
                         String ctbname = getTableName(Long.valueOf(i), tableName);
                         executeCreate(tableName, ctbname);
                     }
@@ -211,7 +215,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                     String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(), getPrecisionDatatype(pi.getType().getSimpleName()));
                                     PreparedStatement preparedStatement = connection.prepareStatement(altertablesql);
                                     if (this.isShowSql) {
-                                        log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,altertablesql));/*log.info(altertablesql);*/
+                                        log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement, altertablesql));/*log.info(altertablesql);*/
                                     }
                                     preparedStatement.executeUpdate();
                                 }
@@ -226,7 +230,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                         String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(), getTimestampType());
                                         PreparedStatement preparedStatement = connection.prepareStatement(altertablesql);
                                         if (this.isShowSql) {
-                                            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,altertablesql));/*log.info(altertablesql);*/
+                                            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement, altertablesql));/*log.info(altertablesql);*/
                                         }
                                         preparedStatement.executeUpdate();
                                     }
@@ -257,7 +261,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                 String sql = String.format(ALTER_TABLE_S_ADD_S, t, avl);
                                 PreparedStatement preparedStatement = connection.prepareStatement(sql);
                                 if (this.isShowSql) {
-                                    log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,sql));/*log.info(sql);*/
+                                    log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement, sql));/*log.info(sql);*/
                                 }
                                 preparedStatement.executeUpdate();
                             } catch (Throwable e) {
@@ -277,7 +281,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
     }
 
-    private void closeConnection(){
+    private void closeConnection() {
         this.getConnectionManager().closeConnection();
     }
 
@@ -322,7 +326,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private String genInsertIdTableSql(String idTableName, String valueOfInsert) {
         //INSERT INTO ID_TABLE VALUES(%s)
-        String insertIdtable = String.format("%s %s %s", KSentences.INSERT, idTableName,String.format(" VALUES(%s)", valueOfInsert));
+        String insertIdtable = String.format("%s %s %s", KSentences.INSERT, idTableName, String.format(" VALUES(%s)", valueOfInsert));
         return insertIdtable;
     }
 
@@ -331,8 +335,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         if (csql != null && csql.trim().length() > 0) {
             //execute create table sql
             PreparedStatement preparedStatement = this.getConnectionManager().getConnection().prepareStatement(csql);
-            if (this.isShowSql){
-                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,csql));/*log.info(csql);*/
+            if (this.isShowSql) {
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement, csql));/*log.info(csql);*/
             }
             preparedStatement.executeUpdate();
             //create table index
@@ -375,6 +379,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return "";
     }
+
     //`name` varchanr(255) null default null comment '',
     protected String getColumnLine(PropInfo p) {
         if ("MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
@@ -385,28 +390,23 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             throw new IllegalArgumentException("not support database");
         }
     }
+
     private String getMysqlColumnLine(PropInfo p) {
         StringBuilder ctsb = new StringBuilder();
         ctsb.append("`").append(p.getCname()).append("` ");
         if (p.getType() == Integer.class) {
             ctsb.append("INT");
-        }
-        else if (p.getType() == Float.class) {
+        } else if (p.getType() == Float.class) {
             ctsb.append("FLOAT");
-        }
-        else if (p.getType() == Long.class) {
+        } else if (p.getType() == Long.class) {
             ctsb.append("BIGINT");
-        }
-        else if (p.getType() == Double.class) {
+        } else if (p.getType() == Double.class) {
             ctsb.append("Double");
-        }
-        else if (p.getType() == Boolean.class) {
+        } else if (p.getType() == Boolean.class) {
             ctsb.append("BIT");
-        }
-        else if(p.getType() == Byte.class){
+        } else if (p.getType() == Byte.class) {
             ctsb.append("TINYINT");
-        }
-        else if (p.getType() == Short.class){
+        } else if (p.getType() == Short.class) {
             ctsb.append("SMALLINT");
         } else if (p.getType() == BigDecimal.class) {
             ctsb.append("DECIMAL");
@@ -458,7 +458,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             throw new IllegalStateException(err);
         }
 
-        if ( !(p.getType() == String.class || p.getType().isEnum()) && p.getLength()!=null && p.getLength()!=255 && p.getType() != BigDecimal.class ) {
+        if (!(p.getType() == String.class || p.getType().isEnum()) && p.getLength() != null && p.getLength() != 255 && p.getType() != BigDecimal.class) {
             ctsb.append("(").append(p.getLength()).append(")");
         }
 
@@ -488,11 +488,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 ctsb.append(" UNIQUE ");
             }
         }
-        if (p.getComment()!=null&&!"".equals(p.getComment())) {
+        if (p.getComment() != null && !"".equals(p.getComment())) {
             ctsb.append(" ").append(KSentences.COMMENT.getValue()).append(" '").append(p.getComment()).append("' ");
         }
         return ctsb.toString();
     }
+
     private String getTimestampType() {
         if ("MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
             return "DATETIME";
@@ -502,6 +503,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             throw new IllegalArgumentException("not support database");
         }
     }
+
     protected String getOracleColumnLine(PropInfo p) {
         StringBuilder sb = new StringBuilder();
         sb.append(p.getCname()).append("   ");
@@ -573,6 +575,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return sb.toString();
     }
+
     //get table max split num
     private int getMaxIdleTablecount(ColumnRule crn) {
         if (crn.ruleType().equals(RuleType.MOD)) {
@@ -598,16 +601,16 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                             //current index name
                             //CREATE $UNIQUE$ INDEX $idcard_inx$ ON $User$($idcard(20),age$)"
                             String sql = String.format(
-                                                        CREATE_INDEX_S,
-                                                        (prop.getIndex().unique() ? KSentences.UNIQUE : ""),
-                                                        getIndexName(prop),
-                                                        tableNameOfTables,
-                                                        getIndexColumns(prop)
-                                                    );
+                                    CREATE_INDEX_S,
+                                    (prop.getIndex().unique() ? KSentences.UNIQUE : ""),
+                                    getIndexName(prop),
+                                    tableNameOfTables,
+                                    getIndexColumns(prop)
+                            );
                             //execute index inset
                             PreparedStatement preparedStatement = this.getConnectionManager().getConnection().prepareStatement(sql);
                             if (this.isShowSql) {
-                                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,sql)); /*log.info(sql);*/
+                                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement, sql)); /*log.info(sql);*/
                             }
                             preparedStatement.executeUpdate();
                         } catch (Throwable e) {
@@ -619,6 +622,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
         }
     }
+
     protected Set<String> getCurrentTables() {
         ConcurrentSkipListSet<String> tbns = DOMAINCLASS_TABLES_MAP.get(domainClazz);
         if (tbns == null) {
@@ -631,9 +635,11 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return tbns;
     }
+
     private boolean indexIsExist(String tableName, PropInfo prop) throws SQLException {
         return indexIsExistByTableName(tableName, prop) && indexIsExistByTableName(tableName.toUpperCase(), prop);
     }
+
     private boolean indexIsExistByTableName(String tbn, PropInfo prop) throws SQLException {
         //is has index flag
         if (prop.getIndex() != null) {
@@ -669,32 +675,35 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return false;
     }
+
     private String getIndexName(PropInfo p) {
         String idxName =
                 p.getIndex().name().equals("")
-                    ?
-                String.format
-                            ("%s%s",
-                                p.getCname() +
-                                (
-                                    p.getIndex().otherPropName() != null && p.getIndex().otherPropName().length() > 0
-                                        ?
-                                    "_" + p.getIndex().otherPropName().replace(",","_")
-                                        :
-                                    ""
-                                ),
-                                this.INDEX_SUBFIX
-                            )
-                    :
-                p.getIndex().name();
+                        ?
+                        String.format
+                                ("%s%s",
+                                        p.getCname() +
+                                                (
+                                                        p.getIndex().otherPropName() != null && p.getIndex().otherPropName().length() > 0
+                                                                ?
+                                                                "_" + p.getIndex().otherPropName().replace(",", "_")
+                                                                :
+                                                                ""
+                                                ),
+                                        this.INDEX_SUBFIX
+                                )
+                        :
+                        p.getIndex().name();
         return idxName;
     }
+
     private static String getTableName(Long max, String name) {
         if (max < 1) {
             return name;
         }
         return name + KSentences.SHARDING_SPLT.getValue() + max;
     }
+
     private ConcurrentSkipListSet<String> reFreshTables() {
         try {
             ResultSet rs = getTableMeta(this.getConnectionManager().getConnection());
@@ -771,7 +780,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     PreparedStatement statement = getStatementBySql(false, sql);
                     setWhereSqlParamValue(pms, statement, setUpdateNewValues(newValues, statement));
                     if (this.isShowSql) {
-                        log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));/*log.info(sql);*/
+                        log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement, sql));/*log.info(sql);*/
                     }
                     ttc += statement.executeUpdate();
                 }
@@ -840,94 +849,92 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return nativeQuery(false, sql, pms, resultClass);
     }
 
-    private <T> T nativeQuery(Boolean isRead,String sql, Object[] pms, Class<T> resultClass) {
+    private <T> T nativeQuery(Boolean isRead, String sql, Object[] pms, Class<T> resultClass) {
         try {
             T t = getT(resultClass);
             PreparedStatement st = getPreparedStatement(isRead, sql, pms);
             if (this.isShowSql) {
-                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(st,sql));
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(st, sql));
             }
             ResultSet rs = st.executeQuery();
             if (t instanceof String || t instanceof Number || t instanceof Boolean || t instanceof Date) {
                 if (rs.next()) {
                     t = getRT(resultClass, t, rs);
-                }else {
+                } else {
                     t = null;
                 }
                 return t;
-            }
-            else {
+            } else {
                 Field[] declaredFields = resultClass.getDeclaredFields();
                 if (rs.next()) {
-                    return getRTObj(declaredFields,resultClass, t, rs);
-                }else {
+                    return getRTObj(declaredFields, resultClass, t, rs);
+                } else {
                     return null;
                 }
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }finally {
+        } finally {
             closeConnection();
         }
     }
 
     @Override
-    public <T> List<T> nativeQueryList(String sql, Object[] pms, Class<T> resultClass){
+    public <T> List<T> nativeQueryList(String sql, Object[] pms, Class<T> resultClass) {
         return nativeQueryList(true, sql, pms, resultClass);
     }
 
     @Override
-    public <T> List<T> nativeQueryListFromMaster(String sql, Object[] pms, Class<T> resultClass){
+    public <T> List<T> nativeQueryListFromMaster(String sql, Object[] pms, Class<T> resultClass) {
         return nativeQueryList(false, sql, pms, resultClass);
     }
 
-    private <T> List<T> nativeQueryList(Boolean isRead,String sql, Object[] pms, Class<T> resultClass){
+    private <T> List<T> nativeQueryList(Boolean isRead, String sql, Object[] pms, Class<T> resultClass) {
         try {
             T t = getT(resultClass);
             PreparedStatement st = getPreparedStatement(isRead, sql, pms);
             if (this.isShowSql) {
-                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(st,sql));
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(st, sql));
             }
             ResultSet rs = st.executeQuery();
             List<T> tList = new ArrayList<>();
             if (t instanceof String || t instanceof Number || t instanceof Boolean || t instanceof Date) {
-                while (rs.next()){
+                while (rs.next()) {
                     tList.add(getRT(resultClass, getT(resultClass), rs));
                 }
                 return tList;
-            }
-            else {
+            } else {
                 Field[] declaredFields = resultClass.getDeclaredFields();
                 while (rs.next()) {
-                    tList.add(getRTObj(declaredFields,resultClass, getT(resultClass), rs));
+                    tList.add(getRTObj(declaredFields, resultClass, getT(resultClass), rs));
                 }
                 return tList;
             }
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }finally {
+        } finally {
             closeConnection();
         }
     }
 
     @Override
-    public <T> PageData<T> nativeQueryPage(int curPage, int pageSize, String sql, Object[] pms, Class<T> result){
+    public <T> PageData<T> nativeQueryPage(int curPage, int pageSize, String sql, Object[] pms, Class<T> result) {
         return nativeQueryPage(true, curPage, pageSize, sql, pms, result);
     }
 
     @Override
-    public <T> PageData<T> nativeQueryPageFromMaster(int curPage, int pageSize, String sql, Object[] pms, Class<T> result){
+    public <T> PageData<T> nativeQueryPageFromMaster(int curPage, int pageSize, String sql, Object[] pms, Class<T> result) {
         return nativeQueryPage(false, curPage, pageSize, sql, pms, result);
     }
 
-    private <T> PageData<T> nativeQueryPage(Boolean isRead , int curPage, int pageSize, String sql, Object[] pms, Class<T> result){
-        String countSql = "SELECT COUNT(1) FROM ("+sql+") t";//KSentences.SELECT + KSentences.COMMA
+    private <T> PageData<T> nativeQueryPage(Boolean isRead, int curPage, int pageSize, String sql, Object[] pms, Class<T> result) {
+        String countSql = "SELECT COUNT(1) FROM (" + sql + ") t";//KSentences.SELECT + KSentences.COMMA
         Long totalCount = this.nativeQuery(isRead, countSql, pms, Long.class);
         if (totalCount == 0) {
             return new PageData<>(curPage, pageSize, totalCount, new ArrayList<>(0));
         }
         int startIndex = (curPage - 1) * pageSize;
-        String limitSql = sql+KSentences.LIMIT + startIndex + KSentences.COMMA + pageSize ;
+        String limitSql = sql + KSentences.LIMIT + startIndex + KSentences.COMMA + pageSize;
         List<T> dataList = nativeQueryList(isRead, limitSql, pms, result);
         return new PageData<T>(curPage, pageSize, totalCount, dataList);
     }
@@ -936,18 +943,29 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         T t = null;
         Integer izreo = 0;
         String zreo = "0";
-        if ( resultClass.equals(Byte.class)){ t = (T)new Byte(zreo); }
-        else if (resultClass.equals(Short.class)){ t = (T)new Short(zreo); }
-        else if (resultClass.equals(Integer.class)) { t = (T)new Integer(zreo); }
-        else if (resultClass.equals(Long.class)) { t = (T)new Long(zreo); }
-        else if (resultClass.equals(Float.class)) { t = (T)new Float(zreo); }
-        else if (resultClass.equals(Double.class)) { t = (T)new Double(zreo); }
-        else if (resultClass.equals(BigDecimal.class)) { t = (T)new BigDecimal(zreo); }
-        else if (resultClass.equals(Boolean.class)){t = (T)new Boolean(false); }
-        else if (resultClass.equals(java.sql.Date.class)){t = (T)new java.sql.Date(izreo);}
-        else if (resultClass.equals(Timestamp.class)){ t = (T)new Timestamp(izreo);}
-        else if (resultClass.equals(Time.class)){ t = (T)new Time(izreo);}
-        else {
+        if (resultClass.equals(Byte.class)) {
+            t = (T) new Byte(zreo);
+        } else if (resultClass.equals(Short.class)) {
+            t = (T) new Short(zreo);
+        } else if (resultClass.equals(Integer.class)) {
+            t = (T) new Integer(zreo);
+        } else if (resultClass.equals(Long.class)) {
+            t = (T) new Long(zreo);
+        } else if (resultClass.equals(Float.class)) {
+            t = (T) new Float(zreo);
+        } else if (resultClass.equals(Double.class)) {
+            t = (T) new Double(zreo);
+        } else if (resultClass.equals(BigDecimal.class)) {
+            t = (T) new BigDecimal(zreo);
+        } else if (resultClass.equals(Boolean.class)) {
+            t = (T) new Boolean(false);
+        } else if (resultClass.equals(java.sql.Date.class)) {
+            t = (T) new java.sql.Date(izreo);
+        } else if (resultClass.equals(Timestamp.class)) {
+            t = (T) new Timestamp(izreo);
+        } else if (resultClass.equals(Time.class)) {
+            t = (T) new Time(izreo);
+        } else {
             t = resultClass.newInstance();
         }
         if (t instanceof Collection || t instanceof Map) {
@@ -958,7 +976,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return t;
     }
 
-    private PreparedStatement getPreparedStatement(Boolean isRead,String sql, Object[] pms) throws SQLException {
+    private PreparedStatement getPreparedStatement(Boolean isRead, String sql, Object[] pms) throws SQLException {
         if (pms == null) {
             pms = new String[0];
         }
@@ -966,20 +984,33 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         if (pms != null) {
             for (int i = 1; i < pms.length + 1; i++) {
                 Object o = pms[i - 1];
-                if (o instanceof String) { st.setString(i, (String) o); }
-                else if (o instanceof Long) { st.setLong(i, (Long) o); }
-                else if (o instanceof Integer) { st.setInt(i, (Integer) o); }
-                else if (o instanceof Boolean) { st.setBoolean(i, (Boolean) o); }
-                else if (o instanceof Double) { st.setDouble(i, (Double) o); }
-                else if (o instanceof Date) { st.setDate(i, (java.sql.Date) o); }
-                else if (o instanceof BigDecimal) { st.setBigDecimal(i, (BigDecimal) o); }
-                else if (o instanceof Float) { st.setFloat(i, (Float) o); }
-                else if (o instanceof Time) { st.setTime(i, (Time)o); }
-                else if (o instanceof Timestamp) { st.setTimestamp(i, (Timestamp) o); }
-                else if (o instanceof Blob) { st.setBlob(i, (Blob)o); }
-                else if (o instanceof Byte) { st.setByte(i, (Byte)o); }
-                else if (o instanceof Short) { st.setShort(i, (Short) o); }
-                else{
+                if (o instanceof String) {
+                    st.setString(i, (String) o);
+                } else if (o instanceof Long) {
+                    st.setLong(i, (Long) o);
+                } else if (o instanceof Integer) {
+                    st.setInt(i, (Integer) o);
+                } else if (o instanceof Boolean) {
+                    st.setBoolean(i, (Boolean) o);
+                } else if (o instanceof Double) {
+                    st.setDouble(i, (Double) o);
+                } else if (o instanceof Date) {
+                    st.setDate(i, (java.sql.Date) o);
+                } else if (o instanceof BigDecimal) {
+                    st.setBigDecimal(i, (BigDecimal) o);
+                } else if (o instanceof Float) {
+                    st.setFloat(i, (Float) o);
+                } else if (o instanceof Time) {
+                    st.setTime(i, (Time) o);
+                } else if (o instanceof Timestamp) {
+                    st.setTimestamp(i, (Timestamp) o);
+                } else if (o instanceof Blob) {
+                    st.setBlob(i, (Blob) o);
+                } else if (o instanceof Byte) {
+                    st.setByte(i, (Byte) o);
+                } else if (o instanceof Short) {
+                    st.setShort(i, (Short) o);
+                } else {
                     String error = "NOT SUPPORT TYPE IN pms OF " + o.getClass();
                     log.error(error);
                     throw new IllegalStateException(error);
@@ -1023,7 +1054,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return t;
     }
 
-    private <T> T getRTObj(Field[] declaredFields,Class<T> resultClass, T t, ResultSet rs) throws SQLException {
+    private <T> T getRTObj(Field[] declaredFields, Class<T> resultClass, T t, ResultSet rs) throws SQLException {
         for (int i = 0; i < declaredFields.length; i++) {
             Field field = declaredFields[i];
             if (field.isAnnotationPresent(Transient.class)) {
@@ -1032,26 +1063,40 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             String name = field.getName();
             if (field.isAnnotationPresent(Column.class)) {
                 Column column = field.getAnnotation(Column.class);
-                if (column.name()!=null&&!column.name().trim().equals("")){
+                if (column.name() != null && !column.name().trim().equals("")) {
                     name = column.name();
                 }
             }
             int columnIndex = rs.findColumn(name);
             Class<?> type = field.getType();
             Object value = null;
-            if (type.equals(Byte.class)) { value = rs.getByte(columnIndex); }
-            else if (type.equals(Short.class)) { value = rs.getShort(columnIndex); }
-            else if (type.equals(Integer.class)) { value = rs.getInt(columnIndex); }
-            else if (type.equals(Long.class)) { value = rs.getLong(columnIndex); }
-            else if (type.equals(String.class)) { value = rs.getString(columnIndex); }
-            else if (type.equals(Boolean.class)) { value = rs.getBoolean(columnIndex); }
-            else if (type.equals(BigDecimal.class)) { value = rs.getBigDecimal(columnIndex); }
-            else if (type.equals(Double.class)) { value = rs.getDouble(columnIndex); }
-            else if (type.equals(Float.class)) { value = rs.getFloat(columnIndex); }
-            else if (type.equals(Date.class)) { value = rs.getDate(columnIndex); }
-            else if (type.equals(Timestamp.class)) { value = rs.getTimestamp(columnIndex); }
-            else if (type.equals(Time.class)) { value = rs.getTime(columnIndex); }
-            else{ continue;}
+            if (type.equals(Byte.class)) {
+                value = rs.getByte(columnIndex);
+            } else if (type.equals(Short.class)) {
+                value = rs.getShort(columnIndex);
+            } else if (type.equals(Integer.class)) {
+                value = rs.getInt(columnIndex);
+            } else if (type.equals(Long.class)) {
+                value = rs.getLong(columnIndex);
+            } else if (type.equals(String.class)) {
+                value = rs.getString(columnIndex);
+            } else if (type.equals(Boolean.class)) {
+                value = rs.getBoolean(columnIndex);
+            } else if (type.equals(BigDecimal.class)) {
+                value = rs.getBigDecimal(columnIndex);
+            } else if (type.equals(Double.class)) {
+                value = rs.getDouble(columnIndex);
+            } else if (type.equals(Float.class)) {
+                value = rs.getFloat(columnIndex);
+            } else if (type.equals(Date.class)) {
+                value = rs.getDate(columnIndex);
+            } else if (type.equals(Timestamp.class)) {
+                value = rs.getTimestamp(columnIndex);
+            } else if (type.equals(Time.class)) {
+                value = rs.getTime(columnIndex);
+            } else {
+                continue;
+            }
             field.setAccessible(true);
             try {
                 field.set(t, value);
@@ -1077,37 +1122,50 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             PreparedStatement st = this.getConnectionManager().getConnection().prepareStatement(sql);
             for (int i = 1; i < pms.length + 1; i++) {
                 Object o = pms[i - 1];
-                     if (o instanceof String) { st.setString(i, (String) o); }
-                else if (o instanceof Long) { st.setLong(i, (Long) o); }
-                else if (o instanceof Integer) { st.setInt(i, (Integer) o); }
-                else if (o instanceof Boolean) { st.setBoolean(i, (Boolean) o); }
-                else if (o instanceof Double) { st.setDouble(i, (Double) o); }
-                else if (o instanceof BigDecimal) { st.setBigDecimal(i, (BigDecimal) o); }
-                else if (o instanceof Float) { st.setFloat(i, (Float) o); }
-                else if (o instanceof Date) { st.setDate(i, (java.sql.Date) o); }
-                else if (o instanceof Timestamp) { st.setTimestamp(i, (Timestamp) o); }
-                else if (o instanceof Time) { st.setTime(i, (Time)o); }
-                else if (o instanceof Blob) { st.setBlob(i, (Blob)o); }
-                else if (o instanceof Byte) { st.setByte(i, (Byte)o); }
-                else if (o instanceof Short) { st.setShort(i, (Short) o); }
-                else{
+                if (o instanceof String) {
+                    st.setString(i, (String) o);
+                } else if (o instanceof Long) {
+                    st.setLong(i, (Long) o);
+                } else if (o instanceof Integer) {
+                    st.setInt(i, (Integer) o);
+                } else if (o instanceof Boolean) {
+                    st.setBoolean(i, (Boolean) o);
+                } else if (o instanceof Double) {
+                    st.setDouble(i, (Double) o);
+                } else if (o instanceof BigDecimal) {
+                    st.setBigDecimal(i, (BigDecimal) o);
+                } else if (o instanceof Float) {
+                    st.setFloat(i, (Float) o);
+                } else if (o instanceof Date) {
+                    st.setDate(i, (java.sql.Date) o);
+                } else if (o instanceof Timestamp) {
+                    st.setTimestamp(i, (Timestamp) o);
+                } else if (o instanceof Time) {
+                    st.setTime(i, (Time) o);
+                } else if (o instanceof Blob) {
+                    st.setBlob(i, (Blob) o);
+                } else if (o instanceof Byte) {
+                    st.setByte(i, (Byte) o);
+                } else if (o instanceof Short) {
+                    st.setShort(i, (Short) o);
+                } else {
                     String error = "NOT SUPPORT TYPE OF " + o.getClass();
                     log.error(error);
                     throw new IllegalStateException(error);
                 }
             }
             if (this.isShowSql) {
-                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(st,sql));
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(st, sql));
             }
             return st.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException(e);
-        }finally {
+        } finally {
             closeConnection();
         }
     }
 
-    private Date getDateFuncValue(Boolean isRead ,Set<Param> pms, String property, StatisticsType st) {
+    private Date getDateFuncValue(Boolean isRead, Set<Param> pms, String property, StatisticsType st) {
         try {
             if (isDate(property)) {
                 List<Future<QueryVo<ResultSet>>> rzts = getFunctionValues(isRead, pms, property, st);
@@ -1130,7 +1188,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         } else if (StatisticsType.MAX.equals(st)) {
                             return rzslist.parallelStream().max(Comparator.comparing(d -> d)).get();
                         } else {
-                            throw new IllegalArgumentException(String.format("Date type not supprot %s ; Date类型不支持 %s ;", st,st));
+                            throw new IllegalArgumentException(String.format("Date type not supprot %s ; Date类型不支持 %s ;", st, st));
                         }
                     }
                 } else {
@@ -1147,16 +1205,16 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public Double getStatisticsValue(StatisticsType functionName ,String property , Set<Param> pms) {
+    public Double getStatisticsValue(StatisticsType functionName, String property, Set<Param> pms) {
         return getStatisticsValue(true, functionName, property, pms);
     }
 
     @Override
-    public Double getStatisticsValueFromMaster(StatisticsType functionName ,String property , Set<Param> pms) {
+    public Double getStatisticsValueFromMaster(StatisticsType functionName, String property, Set<Param> pms) {
         return getStatisticsValue(false, functionName, property, pms);
     }
 
-    private Double getStatisticsValue(Boolean isRead , StatisticsType functionName ,String property , Set<Param> pms) {
+    private Double getStatisticsValue(Boolean isRead, StatisticsType functionName, String property, Set<Param> pms) {
         if (property != null && functionName != null) {
             if (getCurrentTables().size() < 1) {
                 return 0d;
@@ -1197,7 +1255,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
 
-    private List<Future<QueryVo<ResultSet>>> getFunctionValues(Boolean isRead,Set<Param> pms, String property,StatisticsType functionName) throws SQLException {
+    private List<Future<QueryVo<ResultSet>>> getFunctionValues(Boolean isRead, Set<Param> pms, String property, StatisticsType functionName) throws SQLException {
         StringBuffer sb = new StringBuffer(KSentences.SELECT.getValue());
         sb.append(functionName);
         for (PropInfo p : getPropInfos()) {
@@ -1268,7 +1326,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return getAll(false, cls);
     }
 
-    private  List<POJO> getAll(Boolean isRead , String... cls){
+    private List<POJO> getAll(Boolean isRead, String... cls) {
         return getRztPos(false, isRead, null, cls);
     }
 
@@ -1278,27 +1336,26 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public List<POJO> getList( Set<Param> pms, boolean isDistinct,String... cls) {
+    public List<POJO> getList(Set<Param> pms, boolean isDistinct, String... cls) {
         return getRztPos(isDistinct, true, pms, cls);
     }
 
     @Override
-    public List<POJO> getListFromMaster(Set<Param> pms, boolean isDistinct,String... cls) {
+    public List<POJO> getListFromMaster(Set<Param> pms, boolean isDistinct, String... cls) {
         return getRztPos(isDistinct, false, pms, cls);
     }
 
     @Override
     public List<POJO> getListOrderBy(Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls) {
-        return getListOrderBy(true,pms,orderbys,cls);
+        return getListOrderBy(true, pms, orderbys, cls);
     }
 
     @Override
-    public List<POJO> getListOrderByFromMaster(Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls){
-        return getListOrderBy(false,pms,orderbys,cls);
+    public List<POJO> getListOrderByFromMaster(Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls) {
+        return getListOrderBy(false, pms, orderbys, cls);
     }
 
-    private List<POJO> getListOrderBy(Boolean isRead , Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls){
-        if (getCurrentTables().size() < 1) { return new ArrayList<>(0); }
+    private List<POJO> getListOrderBy(Boolean isRead, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls) {
         return getRztPos(isRead, 1, Integer.MAX_VALUE / getCurrentTables().size(), orderbys, pms, cls);
     }
 
@@ -1308,7 +1365,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public List<POJO> getPageListFromMaster(int curPage, int pageSize,Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls) {
+    public List<POJO> getPageListFromMaster(int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls) {
         return getRztPos(false, curPage, pageSize, orderbys, pms, cls);
     }
 
@@ -1318,7 +1375,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public PageData<POJO> getPageInfo(int curPage, int pageSize,Set<Param> pms, String... cls) {
+    public PageData<POJO> getPageInfo(int curPage, int pageSize, Set<Param> pms, String... cls) {
         return getListFromNotSorted(true, curPage, pageSize, pms, cls);
     }
 
@@ -1328,21 +1385,21 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public List<POJO> getPageList(int curPage, int pageSize, Set<Param> pms,  String... cls) {
+    public List<POJO> getPageList(int curPage, int pageSize, Set<Param> pms, String... cls) {
         return getListFromNotSorted(true, curPage, pageSize, pms, cls).getDataList();
     }
 
     @Override
-    public PageData<Object[]> getGroupPageInfo(int curPage, int pageSize, Set<Param> pms,LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
+    public PageData<Object[]> getGroupPageInfo(int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
         return getGroupPageInfo(true, curPage, pageSize, pms, orderbys, funs, groupby);
     }
 
     @Override
-    public PageData<Object[]> getGroupPageInfoFromMaster(int curPage, int pageSize, Set<Param> pms,LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
+    public PageData<Object[]> getGroupPageInfoFromMaster(int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
         return getGroupPageInfo(false, curPage, pageSize, pms, orderbys, funs, groupby);
     }
 
-    private PageData<Object[]> getGroupPageInfo(Boolean isRead,int curPage, int pageSize, Set<Param> pms,LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
+    private PageData<Object[]> getGroupPageInfo(Boolean isRead, int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
         if (pms == null) {
             pms = new HashSet<>();
         }
@@ -1388,9 +1445,14 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private Long groupcount(boolean isRead, Set<Param> pms, String... groupby) {
-        if (groupby == null || groupby.length == 0 || getCurrentTables().size() < 1) {
+        if (groupby == null || groupby.length == 0) {
             return 0L;
         }
+
+        if (this.isNotOneResult(pms)) {
+            return 0L;
+        }
+
         try {
             if (pms != null) {
                 pms = new HashSet<>(pms);
@@ -1428,7 +1490,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             setWhereSqlParamValue(hvcs, statement, ix);
 
             if (this.isShowSql) {
-                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));/*log.info(sql);*/
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement, sql));/*log.info(sql);*/
             }
             ResultSet rs = statement.executeQuery();
             if (rs.next()) {
@@ -1462,24 +1524,29 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public List<Object[]> getGroupPageList( int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
+    public List<Object[]> getGroupPageList(int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
         return getGroupPageList(true, curPage, pageSize, pms, orderbys, funs, groupby);
     }
 
     @Override
-    public List<Object[]> getGroupPageListFromMaster(int curPage, int pageSize,Set<Param> pms,LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
+    public List<Object[]> getGroupPageListFromMaster(int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
         return getGroupPageList(false, curPage, pageSize, pms, orderbys, funs, groupby);
     }
 
-    private List<Object[]> getGroupPageList(Boolean isRead,int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
+    private List<Object[]> getGroupPageList(Boolean isRead, int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
         return grouplist(isRead, curPage, pageSize, orderbys, pms, funs, groupby);
     }
 
     private List<Object[]> grouplist(boolean readOnly, int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> pms, LinkedHashMap<String, String> funs, String... groupby) {
         try {
-            if (curPage < 1 || pageSize < 1 || groupby == null || groupby.length == 0 || getCurrentTables().size() < 1) {
+            if (curPage < 1 || pageSize < 1 || groupby == null || groupby.length == 0) {
                 return new ArrayList<>(0);
             }
+
+            if (this.isNotOneResult(pms)) {
+                return new ArrayList<>(0);
+            }
+
             if (pms != null) {
                 pms = new HashSet<>(pms);
             }
@@ -1559,7 +1626,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                 if (propInfoOptional.isPresent()) {
                                     grpsql.append(en.getKey().trim().toUpperCase()).append("(").append(propInfoOptional.get().getCname()).append(")");
                                 } else {
-                                    throw new IllegalArgumentException(String.format("In %s ,Can not find field %s",this.domainClazz.getSimpleName(),en.getValue()));
+                                    throw new IllegalArgumentException(String.format("In %s ,Can not find field %s", this.domainClazz.getSimpleName(), en.getValue()));
                                 }
                             }
                         }
@@ -1599,7 +1666,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
             setWhereSqlParamValue(hvcs, statement, ix);
             if (this.isShowSql) {
-                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,selectPagingSql));/*log.info(selectPagingSql);*/
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement, selectPagingSql));/*log.info(selectPagingSql);*/
             }
             ResultSet resultSet = statement.executeQuery();
             return getObjectList(resultSet);
@@ -1648,15 +1715,15 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<POJO> getAllOrderBy(LinkedHashSet<OrderBy> orderbys, String... cls) {
-        return getAllOrderBy(true,orderbys,cls);
+        return getAllOrderBy(true, orderbys, cls);
     }
 
     @Override
     public List<POJO> getAllOrderByFromMaster(LinkedHashSet<OrderBy> orderbys, String... cls) {
-        return getAllOrderBy(false,orderbys,cls);
+        return getAllOrderBy(false, orderbys, cls);
     }
 
-    private List<POJO> getAllOrderBy(Boolean isRead,LinkedHashSet<OrderBy> orderbys, String... cls){
+    private List<POJO> getAllOrderBy(Boolean isRead, LinkedHashSet<OrderBy> orderbys, String... cls) {
         if (getCurrentTables().size() < 1) {
             return new ArrayList<>(0);
         }
@@ -1673,7 +1740,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return this.getListByIdsIn(false, ids, cls);
     }
 
-    private List<POJO> getListByIdsIn(Boolean isRead,List<Serializable> ids, String... cls) {
+    private List<POJO> getListByIdsIn(Boolean isRead, List<Serializable> ids, String... cls) {
         if (ids != null && ids.size() > 0) {
             Set<PropInfo> pis = getPropInfos();
             for (PropInfo fd : pis) {
@@ -1687,15 +1754,15 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<POJO> getListByParamIn(String propertyName, List<Serializable> vls, String... cls) {
-        return this.getListByParamIn(true,propertyName,vls,cls);
+        return this.getListByParamIn(true, propertyName, vls, cls);
     }
 
     @Override
     public List<POJO> getListByParamInFromMaster(String propertyName, List<Serializable> vls, String... cls) {
-        return this.getListByParamIn(false,propertyName,vls,cls);
+        return this.getListByParamIn(false, propertyName, vls, cls);
     }
 
-    private List<POJO> getListByParamIn(Boolean isRead,String propertyName, List<Serializable> vls, String... cls) {
+    private List<POJO> getListByParamIn(Boolean isRead, String propertyName, List<Serializable> vls, String... cls) {
         if (vls != null && vls.size() > 0) {
             Set<PropInfo> pis = getPropInfos();
             for (PropInfo fd : pis) {
@@ -1715,7 +1782,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
         }
         String tableName = ConnectionManager.getTbinfo(domainClazz).entrySet().iterator().next().getKey();
-        String err = String.format("%s not has primary key ; %s 没有定义主键 ;", tableName,tableName);
+        String err = String.format("%s not has primary key ; %s 没有定义主键 ;", tableName, tableName);
         throw new IllegalStateException(err);
     }
 
@@ -1729,7 +1796,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return getById(false, id, cls);
     }
 
-    private POJO getById(Boolean isRead ,Serializable id, String... strings) {
+    private POJO getById(Boolean isRead, Serializable id, String... strings) {
         return getObjByid(isRead, id, strings);
     }
 
@@ -1778,7 +1845,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         PreparedStatement prepare = getStatementBySql(isRead, sql);
         setWhereSqlParamValue(pms, prepare);
         if (this.isShowSql) {
-            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(prepare,sql));/*log.info(sql); */
+            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(prepare, sql));/*log.info(sql); */
         }
         ResultSet rs = prepare.executeQuery();
         return getRztObject(rs, strings);
@@ -1795,8 +1862,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public POJO getOneFirst(String propertyName, Serializable value, String... cls){
-        List<POJO> list = this.getList(Param.getParams(new Param(propertyName,Operate.EQ,value)), cls);
+    public POJO getOneFirst(String propertyName, Serializable value, String... cls) {
+        List<POJO> list = this.getList(Param.getParams(new Param(propertyName, Operate.EQ, value)), cls);
         if (list.isEmpty()) {
             return null;
         } else {
@@ -1805,8 +1872,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public POJO getOneFirstFromMater(String propertyName, Serializable value, String... cls){
-        List<POJO> list = this.getListFromMaster(Param.getParams(new Param(propertyName,Operate.EQ,value)), cls);
+    public POJO getOneFirstFromMater(String propertyName, Serializable value, String... cls) {
+        List<POJO> list = this.getListFromMaster(Param.getParams(new Param(propertyName, Operate.EQ, value)), cls);
         if (list.isEmpty()) {
             return null;
         } else {
@@ -1857,7 +1924,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public POJO getOneFirst(Set<Param> pms, String... cls){
+    public POJO getOneFirst(Set<Param> pms, String... cls) {
         List<POJO> list = this.getList(pms, cls);
         if (list.isEmpty()) {
             return null;
@@ -1867,7 +1934,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public POJO getOneFirstFromMater(Set<Param> pms, String... cls){
+    public POJO getOneFirstFromMater(Set<Param> pms, String... cls) {
         List<POJO> list = this.getListFromMaster(pms, cls);
         if (list.isEmpty()) {
             return null;
@@ -1876,7 +1943,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
     }
 
-    private POJO getOne(Boolean isRead,Set<Param> pms, String... cls) {
+    private POJO getOne(Boolean isRead, Set<Param> pms, String... cls) {
         List<POJO> rzlist = getRztPos(false, isRead, pms, cls);
         if (rzlist.size() == 1) {
             return rzlist.get(0);
@@ -1928,6 +1995,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return rzc;
     }
+
     //persistence
     protected int persist(POJO pojo) throws IllegalAccessException, SQLException {
         Field[] fields = domainClazz.getDeclaredFields();
@@ -1956,10 +2024,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         String insertSql = sb.toString();
         boolean autoincrement = isAutoIncrement();
         Connection connection = this.getConnectionManager().getConnection();
-        PreparedStatement statement = autoincrement?connection.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS):connection.prepareStatement(insertSql);
+        PreparedStatement statement = autoincrement ? connection.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS) : connection.prepareStatement(insertSql);
         setParamVal(pojo, fields, tbe.getValue(), statement, this.getConnectionManager().getConnection());
         if (this.isShowSql) {
-            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,insertSql)); /*log.info(insertSql);*/
+            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement, insertSql)); /*log.info(insertSql);*/
         }
         int cc = statement.executeUpdate();
         if (autoincrement) {
@@ -1980,6 +2048,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             return false;
         }
     }
+
     //get table split rule
     private ColumnRule getColumnRule() {
         Field[] fds = domainClazz.getDeclaredFields();
@@ -1991,6 +2060,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return null;
     }
+
     //table split
     private String tableSharding(POJO pojo, Field[] fds, String name) throws IllegalAccessException, SQLException {
         //has split rule flag field , and primary key use TABLE flag
@@ -2010,17 +2080,17 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                 //if @GenerationType use TABLE and database is mysql
                                 if (
                                         GenerationType.TABLE.equals(propInfo.getGeneratorValueAnnoStrategyVal())
-                                            &&
-                                        "MySQL".equalsIgnoreCase(this.dataBaseTypeName)
+                                                &&
+                                                "MySQL".equalsIgnoreCase(this.dataBaseTypeName)
                                 ) {
                                     //then , get the next global id , this id is for domain
                                     Long nextId = getNextIdFromIdTable(this.getConnectionManager().getConnection());
                                     field.set(pojo, nextId);
                                 } else if (
-                                        //if @GenerationType use AUTO or SEQUENCE,  and database is oracle
+                                    //if @GenerationType use AUTO or SEQUENCE,  and database is oracle
                                         this.autoNextVal(propInfo)
-                                            &&
-                                        "Oracle".equalsIgnoreCase(this.dataBaseTypeName)
+                                                &&
+                                                "Oracle".equalsIgnoreCase(this.dataBaseTypeName)
                                 ) {
                                     //then , get the next global id , this id is for domain
                                     Long nextId = getNextVal(this.getConnectionManager().getConnection());
@@ -2035,15 +2105,15 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     }
                     //if want split , but not has primary key , throw err info
                     if (field.get(pojo) == null) {
-                        String err = String.format("%s split flag field not be null ; %s 切分字段不能为空 ;", field.getName(),field.getName());
+                        String err = String.format("%s split flag field not be null ; %s 切分字段不能为空 ;", field.getName(), field.getName());
                         throw new IllegalArgumentException(err);
                     }
                 }
                 //current field has split flag , get table index   by current field type and split rule
                 long max = getTableMaxIdx(field.get(pojo), field.getType(), columnRule);
                 Set<String> currentTables = getCurrentTables();
-                if (currentTables.size()>= maxTableCount) {
-                    String err = String.format("out of range for split table max num %s ; 超出了表拆分最大数量 , 最多只能拆分%s个表", maxTableCount,maxTableCount);
+                if (currentTables.size() >= maxTableCount) {
+                    String err = String.format("out of range for split table max num %s ; 超出了表拆分最大数量 , 最多只能拆分%s个表", maxTableCount, maxTableCount);
                     throw new IllegalStateException(err);
                 }
                 String ctbname = getTableName(max, name);
@@ -2063,6 +2133,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
         return name;
     }
+
     //get table index   by current field type and split rule
     private long getTableMaxIdx(Object fieldObject, Class<?> fieldType, ColumnRule cr) {
         long max = 0;
@@ -2105,7 +2176,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             max = getTbIdx(dt.toLocalDate().toEpochDay(), cr);
 
         } else {
-            String err = String.format("%s not support for split , must be int long string or date type ; %s类型不能用来对数据进行切分，请使用int、long、string、date类型的字段", fieldType,fieldType);
+            String err = String.format("%s not support for split , must be int long string or date type ; %s类型不能用来对数据进行切分，请使用int、long、string、date类型的字段", fieldType, fieldType);
             throw new IllegalStateException(err);
         }
         return max;
@@ -2126,7 +2197,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 //CREATE TABLE t_user_11  LIKE t_user
                 String sql = KSentences.CREATE_TABLE.getValue() + ctbname + KSentences.LIKE + name;
                 this.getConnectionManager().getConnection().prepareStatement(sql).executeUpdate();
-                if (this.isShowSql) { log.info(sql); }
+                if (this.isShowSql) {
+                    log.info(sql);
+                }
                 getCurrentTables().add(ctbname);
             } else if ("Oracle".equalsIgnoreCase(this.dataBaseTypeName)) {
                 boolean create = createTableBySql(ctbname);
@@ -2144,7 +2217,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
         }
         String table = tbe.getKey();
-        String err = String.format("%s not has primary key field ; %s 没有定义主键 ;", table,table);
+        String err = String.format("%s not has primary key field ; %s 没有定义主键 ;", table, table);
         throw new IllegalStateException(err);
     }
 
@@ -2173,7 +2246,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 PreparedStatement statement = getStatementBySql(false, sql);
                 setWhereSqlParamValue(pms, statement);
                 if (this.isShowSql) {
-                    log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));/*log.info(sql);*/
+                    log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement, sql));/*log.info(sql);*/
                 }
                 ttc += statement.executeUpdate();
             }
@@ -2247,11 +2320,11 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     Date dt = (Date) vl;
                     statement.setTimestamp(index, new Timestamp(dt.getTime()));
                 } else {
-                    if (propInfo.getVersion()&&vl==null) {
+                    if (propInfo.getVersion() && vl == null) {
                         vl = 1L;
                         try {
                             field.setAccessible(true);
-                            field.set(pojo,vl);
+                            field.set(pojo, vl);
                         } catch (Exception e) {
                             String error = "set new value to @Version type error";
                             throw new IllegalArgumentException(error);
@@ -2263,6 +2336,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
 
     }
+
     //get field obj
     private Object getPropValue(POJO pojo, Field fd) {
         try {
@@ -2319,9 +2393,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     //query get single value list
     private List<Object> getRztPos(String property, Set<Param> params, boolean isRead, boolean isDistinct) {
-        if (getCurrentTables().size() < 1) {
+        if (this.isNotOneResult(params)) {
             return new ArrayList<>(0);
         }
+
         try {
             String selectpre = getPreSelectSql(isDistinct, property);
             String whereSqlByParam = getWhereSqlByParam(params);
@@ -2342,14 +2417,49 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     }
 
+    private Boolean paramIsInEmpty(Param param) {
+        if (param.getOperators().equals(Operate.IN)) {
+            if (param.getInValue() == null || param.getInValue().isEmpty()) {
+                Param orParam = param.getOrParam();
+                if (orParam == null) {
+                    return true;
+                } else {
+                    return this.paramIsInEmpty(orParam);
+                }
+            }
+        }
+        return false;
+    }
+
+    private Boolean paramsIsInEmpty(Set<Param> params) {
+        if (params != null) {
+            for (Param param : params) {
+                return this.paramIsInEmpty(param);
+            }
+        }
+        return false;
+    }
+
+    private Boolean isNotOneResult(Set<Param> params) {
+        // zero table
+        if (getCurrentTables().size() < 1) {
+            return true;
+        }
+        // in empty
+        if (this.paramsIsInEmpty(params)) {
+            return true;
+        }
+        return false;
+    }
+
+
     //query get pojo list
     private List<POJO> getRztPos(boolean isDistinct, boolean isRead, Set<Param> params, String... strings) {
-        if (getCurrentTables().size() < 1) {
+        //no one result
+        if (this.isNotOneResult(params)) {
             return new ArrayList<>(0);
         }
-        if (params!=null && params.stream().anyMatch(p -> p.getOperators().equals(Operate.IN) && (p.getInValue() == null || p.getInValue().isEmpty()))) {
-            return new ArrayList<>(0);
-        }
+
         try {
             String selectpre = getPreSelectSql(isDistinct, strings);
             String whereSqlByParam = getWhereSqlByParam(params);
@@ -2384,7 +2494,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public PageData<POJO> getPageInfo(int curPage, int pageSize, Set<Param> params, LinkedHashSet<OrderBy> orderbys,String... strings) {
+    public PageData<POJO> getPageInfo(int curPage, int pageSize, Set<Param> params, LinkedHashSet<OrderBy> orderbys, String... strings) {
         Long count = this.getCount(params);
         if (count > 0) {
             return new PageData<>(curPage, pageSize, count, getRztPos(true, curPage, pageSize, orderbys, params, strings));
@@ -2394,7 +2504,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     @Override
-    public PageData<POJO> getPageInfoFromMaster(int curPage, int pageSize,Set<Param> params, LinkedHashSet<OrderBy> orderbys,String... strings) {
+    public PageData<POJO> getPageInfoFromMaster(int curPage, int pageSize, Set<Param> params, LinkedHashSet<OrderBy> orderbys, String... strings) {
         Long count = getCountFromMaster(params);
         if (count > 0) {
             return new PageData<>(curPage, pageSize, count, getRztPos(false, curPage, pageSize, orderbys, params, strings));
@@ -2413,8 +2523,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             sb.append(")  row_  where    rownum <=");
             sb.append(curPage * pageSize);
             return sb.toString();
-        }else {
-            String err = String.format("current page router not support %s database ; 当前查询分页路由不支持%s数据库系统 ;", this.dataBaseTypeName,this.dataBaseTypeName);
+        } else {
+            String err = String.format("current page router not support %s database ; 当前查询分页路由不支持%s数据库系统 ;", this.dataBaseTypeName, this.dataBaseTypeName);
             throw new IllegalStateException(err);
         }
     }
@@ -2426,7 +2536,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         } else if (this.dataBaseTypeName.equalsIgnoreCase("Oracle")) {
             return oraclepageselect(sql, curPage, pageSize);
         }
-        String err = String.format("current page router not support %s database ; 当前查询分页路由不支持%s数据库系统 ;", this.dataBaseTypeName,this.dataBaseTypeName);
+        String err = String.format("current page router not support %s database ; 当前查询分页路由不支持%s数据库系统 ;", this.dataBaseTypeName, this.dataBaseTypeName);
         throw new IllegalStateException(err);
     }
 
@@ -2467,9 +2577,14 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private List<POJO> getRztPos(Boolean isRead, int curPage, int pageSize, LinkedHashSet<OrderBy> orderbys, Set<Param> params, String... strings) {
-        if (curPage < 1 || pageSize < 1 || getCurrentTables().size() < 1) {
+        if (curPage < 1 || pageSize < 1) {
             return new ArrayList<>(0);
         }
+
+        if (this.isNotOneResult(params)) {
+            return new ArrayList<>(0);
+        }
+
         Set<String> tbns = getTableNamesByParams(params);
         if (tbns.size() > 1 && (orderbys == null || orderbys.isEmpty())) {
             return getListFromNotSorted(isRead, curPage, pageSize, params, strings).getDataList();
@@ -2484,7 +2599,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 } else {
                     List<QueryVo<PreparedStatement>> pss = new ArrayList<>();
                     for (String tn : tbns) {
-                        String sql = getSelectPagingSql(selectpre + tn + whereSqlByParam + orderBySql, curPage,pageSize);
+                        String sql = getSelectPagingSql(selectpre + tn + whereSqlByParam + orderBySql, curPage, pageSize);
                         PreparedStatement statement = getStatementBySql(isRead, sql);
                         setWhereSqlParamValue(params, statement);
                         pss.add(new QueryVo<PreparedStatement>(tn, statement));
@@ -2510,7 +2625,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         PreparedStatement statement = getStatementBySql(isRead, sql);
         setWhereSqlParamValue(params, statement);
         if (this.isShowSql) {
-            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));/*log.info(sql);*/
+            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement, sql));/*log.info(sql);*/
         }
         return getRztObject(statement.executeQuery());
     }
@@ -2519,7 +2634,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         PreparedStatement statement = getStatementBySql(isRead, sql);
         setWhereSqlParamValue(params, statement);
         if (this.isShowSql) {
-            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));/*log.info(sql);*/
+            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement, sql));/*log.info(sql);*/
         }
         return getRztObject(statement.executeQuery(), strings);
     }
@@ -2530,6 +2645,11 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         //    log.info("begin........................................");
         //}
         try {
+            //not one result
+            if (this.isNotOneResult(params)) {
+                return new PageData<>(curPage, pageSize, 0, new ArrayList<>(0));
+            }
+
             String selectpre = getPreSelectSql(false, strings);
             String whereSqlByParam = getWhereSqlByParam(params);
             List<QueryVo<PreparedStatement>> pss = new ArrayList<>();
@@ -2622,6 +2742,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     //get total count
     private Long getCountPerTable(Boolean isRead, Set<Param> params, String... distincts) {
         try {
+            if (this.isNotOneResult(params)) {
+                return 0L;
+            }
             Set<String> tbs = getTableNamesByParams(params);
             if (tbs.size() > 1) {
                 if (isArrayEffective(distincts)) {
@@ -2655,7 +2778,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 String sql = sb.toString();
                 PreparedStatement statement = getPreParedStatement(isRead, params, sql);
                 if (this.isShowSql) {
-                    log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));/*log.info(sql);*/
+                    log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement, sql));/*log.info(sql);*/
                 }
                 ResultSet rs = statement.executeQuery();
                 if (rs.next()) {
@@ -2694,8 +2817,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         } else {
                             throw new IllegalArgumentException("primary key not null ; 主键的值不能为空 ;");
                         }
-                    }
-                    else if (propInfo.getVersion()) {
+                    } else if (propInfo.getVersion()) {
                         version = true;
                         versionPname = propInfo.getPname();
                         pms.add(new Param(versionPname, Operate.EQ, propValue));
@@ -2707,13 +2829,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         newValues.put(versionPname, newVersion);
                         try {
                             field.setAccessible(true);
-                            field.set(po,newVersion);
+                            field.set(po, newVersion);
                         } catch (Exception e) {
                             String error = "set new value to @Version type error";
                             throw new IllegalArgumentException(error);
                         }
-                    }
-                    else {
+                    } else {
                         newValues.put(propInfo.getPname(), propValue);
                     }
                 }
@@ -2757,7 +2878,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     int i = setUpdateNewValues(newValues, statement);
                     setWhereSqlParamValue(pms, statement, i);
                     if (this.isShowSql) {
-                        log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement,sql));
+                        log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement, sql));
                     }
                     ttc += statement.executeUpdate();
                 }
@@ -2768,13 +2889,13 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         nowVersionField.setAccessible(true);
                         Long nowVersion = Long.parseLong(nowVersionField.get(pojo).toString());
                         if (!oldVersion.equals(nowVersion)) {
-                            String errorMsg = "Current Version Is "+oldVersion+",But The New Version Is "+nowVersion+",So Changes Cannot Be Performed In Different Versions.";
+                            String errorMsg = "Current Version Is " + oldVersion + ",But The New Version Is " + nowVersion + ",So Changes Cannot Be Performed In Different Versions.";
                             throw new ObjectOptimisticLockingFailureException(errorMsg);
                         }
                     }
                 }
             }
-        }catch (ObjectOptimisticLockingFailureException e) {
+        } catch (ObjectOptimisticLockingFailureException e) {
             throw e;
         } catch (IllegalAccessException e) {
             e.printStackTrace();
@@ -2940,7 +3061,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         for (QueryVo<PreparedStatement> ps : pss) {
             PreparedStatement preparedStatement = ps.getOv();
             if (this.isShowSql) {
-                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement,preparedStatement.toString()));
+                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement, preparedStatement.toString()));
             }
             qcs.add(new QueryCallable(preparedStatement, ps.getTbn()));
         }
@@ -3088,7 +3209,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private void setvlcds(StringBuilder sb, Param pm, PropInfo p) {
         if (pm.getOperators().equals(Operate.BETWEEN)) {
             if (pm.getFirstValue() == null || pm.getValue() == null) {
-                throw new IllegalArgumentException( String.format("%s BETWEEN param value is not null  ! ", pm.getPname()));
+                throw new IllegalArgumentException(String.format("%s BETWEEN param value is not null  ! ", pm.getPname()));
             }
             setcName(sb, pm, p);
             sb.append(pm.getOperators().getValue());
@@ -3098,7 +3219,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
         } else if (pm.getOperators().equals(Operate.IN) || pm.getOperators().equals(Operate.NOT_IN)) {
             if (pm.getInValue() == null || pm.getInValue().size() < 1) {
-                throw new IllegalArgumentException( String.format("%s IN param list value size is not zero or null;  %s字段,IN查询条件的List不能为空;", pm.getPname(),pm.getPname()));
+                throw new IllegalArgumentException(String.format("%s IN param list value size is not zero or null;  %s字段,IN查询条件的List不能为空;", pm.getPname(), pm.getPname()));
             }
             setcName(sb, pm, p);
             sb.append(pm.getOperators().getValue());
@@ -3114,9 +3235,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         } else {
             if (pm.getValue() != null && !pm.getValue().toString().trim().equals("")) {
                 setcName(sb, pm, p);
-                if (pm.getOperators().name().startsWith("C_")){
+                if (pm.getOperators().name().startsWith("C_")) {
                     sb.append(pm.getOperators().getValue()).append("`").append(pm.getValue()).append("`");
-                }else{
+                } else {
                     sb.append(pm.getOperators().getValue()).append(KSentences.POSITION_PLACEHOLDER.getValue());
                 }
 
@@ -3142,7 +3263,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     sb.append(")");
                 }
             } else {
-                throw new IllegalArgumentException( String.format("%s %s  param  value  is not null ! ", domainClazz.getSimpleName(), pm.getPname()));
+                throw new IllegalArgumentException(String.format("%s %s  param  value  is not null ! ", domainClazz.getSimpleName(), pm.getPname()));
             }
         }
     }
@@ -3153,7 +3274,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 return p.getType();
             }
         }
-        throw new IllegalArgumentException(String.format("% field not definition ; %s字段没有定义 ;", pm.getPname(),pm.getPname()));
+        throw new IllegalArgumentException(String.format("% field not definition ; %s字段没有定义 ;", pm.getPname(), pm.getPname()));
     }
 
     private void setcName(StringBuilder sb, Param pm, PropInfo p) {
@@ -3169,7 +3290,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     protected int setWhereSqlParamValue(Set<Param> pms, PreparedStatement statement, int ix) {
         if (pms != null && pms.size() > 0) {
             for (Param pm : pms) {
-                if (pm.getOperators().name().startsWith("C_")){
+                if (pm.getOperators().name().startsWith("C_")) {
                     continue;
                 }
                 if (pm.getPname() != null && pm.getPname().trim().length() > 0) {

@@ -16,6 +16,9 @@ public class MyDataProperties {
     //dbName
     private String db; // MySQL ...
 
+    //connectStr
+    private String connectCharset;//utf8  utf8mb4  xxx
+
     public Boolean getShowSql() {
         return showSql;
     }
@@ -38,5 +41,13 @@ public class MyDataProperties {
 
     public void setDb(String db) {
         this.db = db;
+    }
+
+    public String getConnectCharset() {
+        return connectCharset;
+    }
+
+    public void setConnectCharset(String connectCharset) {
+        this.connectCharset = connectCharset;
     }
 }

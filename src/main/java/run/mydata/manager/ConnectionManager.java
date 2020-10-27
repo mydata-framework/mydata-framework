@@ -37,7 +37,7 @@ public final class ConnectionManager implements IConnectionManager {
     //enable ddl
     private boolean ddl = true;
     //init column string
-    private String connectStr = "set  names  utf8";
+    private String connectStr = "set names utf8";
     //db name
     private String db;//MySQL Oracle
     //primary db
