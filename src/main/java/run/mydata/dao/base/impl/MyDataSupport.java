@@ -174,11 +174,21 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     } else {
                         //clean old global table id
                         //DELETE FROM TUSER_SEQ_ID
-                        // String cleanIdSql = String.format("%s %s", KSentences.DELETE_FROM, idTableName);
-                        // PreparedStatement preparedStatement = connection.prepareStatement(cleanIdSql);
-                        // if (this.isShowSql) {
-                        // log.info(preparedStatement.toString());/*log.info(cleanIdSql);*/ }
-                        // preparedStatement.executeUpdate();
+
+                        //String cleanIdSql = String.format("%s %s", KSentences.DELETE_FROM, idTableName);
+                        //PreparedStatement preparedStatement = connection.prepareStatement(cleanIdSql);
+                        //if (this.isShowSql) {
+                        //    log.info(preparedStatement.toString());/*log.info(cleanIdSql);*/
+                        //}
+                        //preparedStatement.executeUpdate();
+
+                        //ResultSet resultSet = connection.prepareStatement(String.format("SELECT SID FROM %s ORDER BY SID DESC LIMIT 1", idTableName)).executeQuery();
+                        //if (resultSet.next()) {
+                        //    Long lastId = resultSet.getLong(1);
+                        //    if (lastId != null) {
+                        //        connection.prepareStatement(String.format("DELETE FROM %s WHERE SID < %d", idTableName, lastId)).executeUpdate();
+                        //    }
+                        //}
                     }
                 }
             }
