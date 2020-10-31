@@ -342,15 +342,15 @@ public interface IMyData<POJO> {
     <T> PageData<T> nativeQueryPage(int curPage, int pageSize, String sql, Object[] pms, Class<T> result);
     <T> PageData<T> nativeQueryPageFromMaster(int curPage, int pageSize, String sql, Object[] pms, Class<T> result);
 
-    /**
-     * 根据表
-     * @param curPage .
-     * @param pageSize .
-     * @param pms .
-     * @param orderbys .
-     * @param cls .
-     * @return
-     */
+    ///**
+    // * 根据全局自增长主键进行分表的表名降序查询数据列表,首先根据表名进行排序然后才从各个表排序之后依次获取当前页需要的数据量返回
+    // * @param curPage .
+    // * @param pageSize .
+    // * @param pms .
+    // * @param orderbys .
+    // * @param cls .
+    // * @return
+    // */
     //List<POJO> getListOrderByTableNameDesc(int curPage, int pageSize,Set<Param> pms,LinkedHashSet<OrderBy> orderbys,String... cls);
     //List<POJO> getListOrderByTableNameDescFromMaster(int curPage, int pageSize,Set<Param> pms,LinkedHashSet<OrderBy> orderbys,String... cls);
     //List<POJO> getListOrderByTableNameAsc(int curPage, int pageSize,Set<Param> pms,LinkedHashSet<OrderBy> orderbys,String... cls);
