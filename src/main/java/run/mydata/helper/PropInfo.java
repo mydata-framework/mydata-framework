@@ -2,6 +2,7 @@ package run.mydata.helper;
 
 
 import run.mydata.annotation.ColumnRule;
+import run.mydata.annotation.MyIndexFullText;
 import run.mydata.annotation.MyIndex;
 
 import javax.persistence.EnumType;
@@ -39,6 +40,8 @@ public class PropInfo {
     private String generatorValueAnnoGeneratorVal;
     // 创建索引信息
     private MyIndex index;
+    // 创建全文索引信息
+    private MyIndexFullText fullTextIndex;
     // 枚举映射数据库的类型
     private EnumType enumType;
     // 数据库字段备注
@@ -198,5 +201,13 @@ public class PropInfo {
 
     public void setMoreLength(String moreLength) {
         this.moreLength = moreLength;
+    }
+
+    public MyIndexFullText getFullTextIndex() {
+        return fullTextIndex;
+    }
+
+    public void setFullTextIndex(MyIndexFullText fullTextIndex) {
+        this.fullTextIndex = fullTextIndex;
     }
 }

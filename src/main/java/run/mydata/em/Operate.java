@@ -57,7 +57,7 @@ public enum Operate {
     IN {
         @Override
         public String getValue() {
-            return " in";
+            return " IN";
         }
     },
     /***
@@ -66,7 +66,7 @@ public enum Operate {
     NOT_IN {
         @Override
         public String getValue() {
-            return "  not  in";
+            return "  NOT  IN";
         }
 
     },
@@ -76,7 +76,7 @@ public enum Operate {
     LIKE {
         @Override
         public String getValue() {
-            return "  like  ";
+            return "  LIKE  ";
         }
     },
     /**
@@ -85,7 +85,7 @@ public enum Operate {
     LIKE_LEFT {
         @Override
         public String getValue() {
-            return "  like  ";
+            return "  LIKE  ";
         }
     },
     /**
@@ -94,7 +94,7 @@ public enum Operate {
     LIKE_RIGHT {
         @Override
         public String getValue() {
-            return "  like  ";
+            return "  LIKE  ";
         }
     },
     /**
@@ -113,7 +113,7 @@ public enum Operate {
     BETWEEN {
         @Override
         public String getValue() {
-            return "  between  ";
+            return "  BETWEEN  ";
         }
     },
 
@@ -172,7 +172,47 @@ public enum Operate {
         public String getValue() {
             return "<>";
         }
-    };
+    },
+
+    /**
+     * FULLTEXT INDEX QUERY , 全文检索自然语言模型查询
+     */
+    AGAINST_IN_NATURAL_LANGUAGE_MODE{
+        @Override
+        public String getValue() {
+            return "MATCH (%s) AGAINST (? IN NATURAL LANGUAGE MODE) ";
+        }
+    },
+    /**
+     * FULLTEXT INDEX QUERY , 全文检索BOOLEAN查询
+     */
+    AGAINST_IN_BOOLEAN_MODE{
+        @Override
+        public String getValue() {
+            return "MATCH (%s) AGAINST (? IN BOOLEAN MODE) ";
+        }
+    },
+    /**
+     * FULLTEXT INDEX QUERY , 全文检索自然语言扩展查询
+     */
+    AGAINST_IN_NATURAL_LANGUAGE_MODE_WITH_QUERY_EXPANSION{
+        @Override
+        public String getValue() {
+            return "MATCH (%s)  AGAINST (? IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION) ";
+        }
+    },
+    /**
+     * FULLTEXT INDEX QUERY , 全文检索扩展查询
+     */
+    AGAINST_WITH_QUERY_EXPANSION{
+        @Override
+        public String getValue() {
+            return "MATCH (%s)  AGAINST (? WITH QUERY EXPANSION) ";
+        }
+    },
+
+    ;
+
 
     @Override
     public String toString() {

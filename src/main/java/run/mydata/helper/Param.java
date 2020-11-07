@@ -5,14 +5,13 @@ import run.mydata.em.Operate;
 import run.mydata.em.PmType;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 查询条件参数
  *
  * @author Liu Tao
  */
-public class Param{
+public class Param {
     // 属性名称
     private String pname;
     // 操作
@@ -114,9 +113,10 @@ public class Param{
 
     /**
      * 除了between外,最常用的条件参数初始化
-     * @param pname .
+     *
+     * @param pname     .
      * @param operators .
-     * @param value .
+     * @param value     .
      */
     public Param(String pname, Operate operators, Object value) {
         super();
@@ -127,11 +127,11 @@ public class Param{
         } else {
             if (operators.equals(Operate.LIKE)) {
                 this.value = "%" + value + "%";
-            } else if (operators.equals(Operate.LIKE_LEFT)){
+            } else if (operators.equals(Operate.LIKE_LEFT)) {
                 this.value = "%" + value;
-            } else if (operators.equals(Operate.LIKE_RIGHT)){
+            } else if (operators.equals(Operate.LIKE_RIGHT)) {
                 this.value = value + "%";
-            }else {
+            } else {
                 this.value = value;
             }
         }
@@ -139,9 +139,10 @@ public class Param{
 
     /**
      * between 查询
-     * @param pname .
+     *
+     * @param pname      .
      * @param firstValue .
-     * @param value .
+     * @param value      .
      */
     public Param(Object firstValue, String pname, Object value) {
         super();
@@ -153,7 +154,8 @@ public class Param{
 
     /**
      * in 查询
-     * @param pname .
+     *
+     * @param pname   .
      * @param inValue .
      */
     public Param(String pname, List<?> inValue) {
@@ -163,7 +165,7 @@ public class Param{
         this.operators = Operate.IN;
     }
 
-    public Param OR(Param param){
+    public Param OR(Param param) {
         this.setOrParam(param);
         return this;
     }
@@ -173,7 +175,7 @@ public class Param{
      */
     private Set<Param> params;
 
-    public Param AND(String pname, Operate operators, Object value){
+    public Param AND(String pname, Operate operators, Object value) {
         Param param = new Param(pname, operators, value);
         if (this.params == null) {
             params = new HashSet<>();
@@ -182,7 +184,8 @@ public class Param{
         params.add(param);
         return this;
     }
-    public Param AND(Object firstValue, String pname, Object value){
+
+    public Param AND(Object firstValue, String pname, Object value) {
         Param param = new Param(firstValue, pname, value);
         if (this.params == null) {
             params = new HashSet<>();
@@ -191,7 +194,8 @@ public class Param{
         params.add(param);
         return this;
     }
-    public Param AND(String pname, List<?> inValue){
+
+    public Param AND(String pname, List<?> inValue) {
         Param param = new Param(pname, inValue);
         if (this.params == null) {
             params = new HashSet<>();
@@ -200,7 +204,8 @@ public class Param{
         params.add(param);
         return this;
     }
-    public Param AND(Param param){
+
+    public Param AND(Param param) {
         if (this.params == null) {
             params = new HashSet<>();
             params.add(this);
@@ -208,7 +213,8 @@ public class Param{
         params.add(param);
         return this;
     }
-    public Set<Param> END(){
+
+    public Set<Param> END() {
         if (this.params == null) {
             params = new HashSet<>();
             params.add(this);
@@ -252,6 +258,7 @@ public class Param{
         }
         return mp;
     }
+
     public static LinkedHashMap<String, String> getStringMap(String... ag) {
         LinkedHashMap<String, String> mp = new LinkedHashMap<>();
         if (ag != null && ag.length > 0 && ag.length % 2 == 0) {
@@ -302,7 +309,7 @@ public class Param{
         return getStringMap(ag);
     }
 
-    public static Object[] arr(Object... ag){
+    public static Object[] arr(Object... ag) {
         return ag;
     }
 
@@ -310,5 +317,15 @@ public class Param{
         return getStringArr(ag);
     }
 
-
+    public static String MATCH(String... ag) {
+        String matchField = "";
+        for (int i = 0; i < ag.length; i++) {
+            if (i == 0) {
+                matchField += ag[i];
+            } else {
+                matchField += ("," + ag[i]);
+            }
+        }
+        return matchField;
+    }
 }

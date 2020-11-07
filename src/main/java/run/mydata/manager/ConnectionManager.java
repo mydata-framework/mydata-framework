@@ -1,9 +1,6 @@
 package run.mydata.manager;
 
-import run.mydata.annotation.ColumnComment;
-import run.mydata.annotation.ColumnMoreLength;
-import run.mydata.annotation.ColumnRule;
-import run.mydata.annotation.MyIndex;
+import run.mydata.annotation.*;
 import run.mydata.dao.beans.IMyDataShowSqlBean;
 import run.mydata.dao.beans.MyDataShowSqlBeanDefault;
 import run.mydata.helper.PropInfo;
@@ -246,6 +243,9 @@ public final class ConnectionManager implements IConnectionManager {
                     }
                     if (field.isAnnotationPresent(MyIndex.class) && !info.getIsUnique()) {
                         info.setIndex(field.getAnnotation(MyIndex.class));
+                    }
+                    if (field.isAnnotationPresent(MyIndexFullText.class) && !info.getIsUnique()) {
+                        info.setFullTextIndex(field.getAnnotation(MyIndexFullText.class));
                     }
                     if (field.isAnnotationPresent(Lob.class)) {
                         info.setIsLob(true);

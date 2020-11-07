@@ -3,6 +3,8 @@ package run.mydata.dao.base.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import run.mydata.annotation.ColumnRule;
+import run.mydata.annotation.MyIndexFullText;
+import run.mydata.annotation.Other;
 import run.mydata.dao.base.IMyData;
 import run.mydata.em.*;
 import run.mydata.exception.ObjectOptimisticLockingFailureException;
@@ -69,8 +71,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private volatile int maxTableCount = 1024;
     private static final String ALTER_TABLE_MODIFY_COLUMN = "ALTER TABLE %s MODIFY %s %s";
     private static final String INDEX_SUBFIX = "_idx";
+    private static final String FULLTEXT_INDEX_SUBFIX="_fulltext_idx";
     private static final String ALTER_TABLE_S_ADD_S = "ALTER TABLE %s ADD (%s)";
-    private static final String CREATE_INDEX_S = "CREATE %s INDEX %s ON %s(%s)";
     private static final String SEQUENCE_QUERY = "SELECT sequence_name FROM user_sequences WHERE sequence_name=?";
     private static final int MAX_IDLE_TABLE_COUNT = 8;
     private static final ForkJoinPool NEW_FIXED_THREAD_POOL = new ForkJoinPool(Integer.min(Runtime.getRuntime().availableProcessors() * 4, 32));
@@ -600,18 +602,19 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private void createIndex(String tableName) throws SQLException {
         //foreach properties
         for (PropInfo prop : getPropInfos()) {
+
             //if current column has index
-            if (indexIsExist(tableName, prop)) {
+            if (indexIsNeedCreate(tableName, prop)) {
                 //foreach current domains all tables , may be split table ,  has more than 1
                 for (String tableNameOfTables : getCurrentTables()) {
                     //check current table item is has this index
-                    if (indexIsExist(tableNameOfTables, prop)) {
+                    if (indexIsNeedCreate(tableNameOfTables, prop)) {
                         //if not has , then create this index
                         try {
                             //current index name
                             //CREATE $UNIQUE$ INDEX $idcard_inx$ ON $User$($idcard(20),age$)"
                             String sql = String.format(
-                                    CREATE_INDEX_S,
+                                    "CREATE %s INDEX %s ON %s(%s) ",
                                     (prop.getIndex().unique() ? KSentences.UNIQUE : ""),
                                     getIndexName(prop),
                                     tableNameOfTables,
@@ -630,6 +633,39 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     }
                 }
             }
+
+            if (fullTextIndexIsNeedCreate(tableName, prop)) {
+                //foreach current domains all tables , may be split table ,  has more than 1
+                for (String tableNameOfTables : getCurrentTables()) {
+                    //check current table item is has this index
+                    if (fullTextIndexIsNeedCreate(tableNameOfTables, prop)) {
+                        //if not has , then create this index
+                        try {
+                            //current index name
+                            //CREATE FULLTEXT INDEX `xxx_fulltext_idx` ON `table_name` (`column_name`) WITH PARSER ngram
+                            String sql = String.format(
+                                    "CREATE FULLTEXT INDEX %s ON %s(%s) ",
+                                    getFullTextIndexName(prop),
+                                    tableNameOfTables,
+                                    getFullTextIndexColumns(prop)
+                            );
+                            if (prop.getFullTextIndex().parser() != null) {
+                                sql += prop.getFullTextIndex().parser();
+                            }
+                            //execute index inset
+                            PreparedStatement preparedStatement = this.getConnectionManager().getConnection().prepareStatement(sql);
+                            if (this.isShowSql) {
+                                log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement, sql)); /*log.info(sql);*/
+                            }
+                            preparedStatement.executeUpdate();
+                        } catch (Throwable e) {
+                            e.printStackTrace();
+                            log.error("create fulltext index error ", e);
+                        }
+                    }
+                }
+            }
+
         }
     }
 
@@ -646,40 +682,83 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return tbns;
     }
 
-    private boolean indexIsExist(String tableName, PropInfo prop) throws SQLException {
-        return indexIsExistByTableName(tableName, prop) && indexIsExistByTableName(tableName.toUpperCase(), prop);
+    private boolean indexIsNeedCreate(String tableName, PropInfo prop) throws SQLException {
+        return indexIsNeedCreateByTableName(tableName, prop) && indexIsNeedCreateByTableName(tableName.toUpperCase(), prop);
     }
 
-    private boolean indexIsExistByTableName(String tbn, PropInfo prop) throws SQLException {
+    private boolean fullTextIndexIsNeedCreate(String tableName, PropInfo prop) throws SQLException {
+        return fullTextIndexIsNeedCreateByTableName(tableName, prop) && fullTextIndexIsNeedCreateByTableName(tableName.toUpperCase(), prop);
+    }
+
+    private boolean indexIsNeedCreateByTableName(String tbn, PropInfo prop) throws SQLException {
         //is has index flag
         if (prop.getIndex() != null) {
             //current index name
             String idxName = getIndexName(prop);
+
             //statistics current index data
-            Map<String, String> grps = new HashMap<>(5);
-            ResultSet saa = this.getConnectionManager().getConnection().getMetaData().getIndexInfo(null, null, tbn,
-                    prop.getIndex().unique(), false);
+            Map<String, String> idxNameKeyColumnNameValueMap = new HashMap<>(5);
+            ResultSet saa = this.getConnectionManager()
+                    .getConnection()
+                    .getMetaData()
+                    .getIndexInfo(null, null, tbn, prop.getIndex().unique(), false);
 
             while (saa.next()) {
-                String idn = saa.getString("INDEX_NAME");
-                if (idn != null) {
-                    if (idxName.equalsIgnoreCase(idn)) {
+                String dbIndexName = saa.getString("INDEX_NAME");
+                if (dbIndexName != null) {
+                    if (idxName.equalsIgnoreCase(dbIndexName)) {
                         return false;
                     }
-                    String cn = saa.getString("COLUMN_NAME");
-                    if (grps.get(idn) != null) {
-                        grps.put(idn, grps.get(idn) + cn);
+                    String dbColumnName = saa.getString("COLUMN_NAME");
+                    if (idxNameKeyColumnNameValueMap.get(dbIndexName) != null) {
+                        idxNameKeyColumnNameValueMap.put(dbIndexName, idxNameKeyColumnNameValueMap.get(dbIndexName) + dbColumnName);
                     } else {
-                        grps.put(idn, cn);
+                        idxNameKeyColumnNameValueMap.put(dbIndexName, dbColumnName);
                     }
-                    if (this.dataBaseTypeName.equalsIgnoreCase("Oracle") && idn.startsWith("SYS_")
-                            && cn.equalsIgnoreCase(prop.getCname())) {
+                    if (this.dataBaseTypeName.equalsIgnoreCase("Oracle") && dbIndexName.startsWith("SYS_") && dbColumnName.equalsIgnoreCase(prop.getCname())) {
                         return false;
                     }
                 }
             }
-            PropInfo propInfo = getPropInfoByPName(prop.getIndex().otherPropName());
-            if (!grps.containsKey(idxName) && !grps.containsValue(prop.getCname() + (propInfo == null ? "" : propInfo.getCname()))) {
+
+            if ( !idxNameKeyColumnNameValueMap.containsKey(idxName) ) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean fullTextIndexIsNeedCreateByTableName(String tbn, PropInfo prop) throws SQLException {
+        //is has index flag
+        if (prop.getFullTextIndex() != null) {
+            //current index name
+            String fullTextIdxName = getFullTextIndexName(prop);
+
+            //statistics current index data
+            Map<String, String> idxNameKeyColumnNameValueMap = new HashMap<>(5);
+            ResultSet saa = this.getConnectionManager()
+                    .getConnection()
+                    .getMetaData()
+                    .getIndexInfo( null, null, tbn, false, false);
+
+            while (saa.next()) {
+                String dbIndexName = saa.getString("INDEX_NAME");
+                if (dbIndexName != null) {
+                    if (fullTextIdxName.equalsIgnoreCase(dbIndexName)) {
+                        return false;
+                    }
+                    String dbColumnName = saa.getString("COLUMN_NAME");
+                    if (idxNameKeyColumnNameValueMap.get(dbIndexName) != null) {
+                        idxNameKeyColumnNameValueMap.put(dbIndexName, idxNameKeyColumnNameValueMap.get(dbIndexName) + dbColumnName);
+                    } else {
+                        idxNameKeyColumnNameValueMap.put(dbIndexName, dbColumnName);
+                    }
+                    if (this.dataBaseTypeName.equalsIgnoreCase("Oracle") && dbIndexName.startsWith("SYS_") && dbColumnName.equalsIgnoreCase(prop.getCname())) {
+                        return false;
+                    }
+                }
+            }
+            if (!idxNameKeyColumnNameValueMap.containsKey(fullTextIdxName)) {
                 return true;
             }
         }
@@ -687,24 +766,49 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private String getIndexName(PropInfo p) {
-        String idxName =
-                p.getIndex().name().equals("")
-                        ?
-                        String.format
-                                ("%s%s",
-                                        p.getCname() +
-                                                (
-                                                        p.getIndex().otherPropName() != null && p.getIndex().otherPropName().length() > 0
-                                                                ?
-                                                                "_" + p.getIndex().otherPropName().replace(",", "_")
-                                                                :
-                                                                ""
-                                                ),
-                                        this.INDEX_SUBFIX
-                                )
-                        :
-                        p.getIndex().name();
-        return idxName;
+        return this.getIndexNameOrigin(p) + INDEX_SUBFIX;
+    }
+    private String getIndexNameOrigin(PropInfo p) {
+        if (p.getIndex().name().equals("")) {
+            if (p.getIndex().otherPropName() != null && p.getIndex().otherPropName().length != 0) {
+                String indexName = p.getCname();
+                Other[] otherArr = p.getIndex().otherPropName();
+                for (int i = 0; i < otherArr.length; i++) {
+                    String pName = otherArr[i].name();
+                    PropInfo pNameProp = getPropInfoByPName(pName);
+                    String cname = pNameProp.getCname();
+                    indexName = ( indexName+"_"+cname );
+                }
+                return indexName;
+            } else {
+                return p.getCname();
+            }
+        } else {
+            return p.getIndex().name();
+        }
+    }
+
+    private String getFullTextIndexName(PropInfo p) {
+        return this.getFullTextIndexNameOrigin(p) + FULLTEXT_INDEX_SUBFIX;
+    }
+    private String getFullTextIndexNameOrigin(PropInfo p) {
+        if (p.getFullTextIndex().name().equals("")) {
+            if (p.getFullTextIndex().otherPropName() != null && p.getFullTextIndex().otherPropName().length != 0) {
+                String fullTextIndexName = p.getCname();
+                Other[] otherArr = p.getFullTextIndex().otherPropName();
+                for (int i = 0; i < otherArr.length; i++) {
+                    String pName = otherArr[i].name();
+                    PropInfo pNameProp = getPropInfoByPName(pName);
+                    String cname = pNameProp.getCname();
+                    fullTextIndexName = ( fullTextIndexName+"_"+cname );
+                }
+                return fullTextIndexName;
+            } else {
+                return p.getCname();
+            }
+        } else {
+            return p.getFullTextIndex().name();
+        }
     }
 
     private static String getTableName(Long max, String name) {
@@ -3161,33 +3265,55 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private void geneConditionSql(Set<Param> pms, StringBuilder sb) {
-        Iterator<Param> pmsite = pms.iterator();
-        while (pmsite.hasNext()) {
-            Param pm = pmsite.next();
+        Iterator<Param> pmsIterator = pms.iterator();
+        while (pmsIterator.hasNext()) {
+            Param pm = pmsIterator.next();
+
             if (pm.getPname() != null && pm.getPname().trim().length() > 0) {
-                boolean isor = pm.getOrParam() != null;
-                if (isor) {
+                boolean hasOr = pm.getOrParam() != null;
+                if (hasOr) {
                     sb.append("(");
                 }
+
                 do {
-                    for (PropInfo p : getPropInfos()) {
-                        if (p.getPname().equals(pm.getPname())) {
-                            if (pm.getCdType().equals(PmType.OG)) {
-                                setogcds(sb, pm, p);
+                    if (pm.getOperators().getValue().startsWith("MATCH")) {
+                        String[] pNames = pm.getPname().split(",");
+                        String matchNames = "";
+                        for (int i = 0; i < pNames.length; i++) {
+                            String pName = pNames[i];
+                            PropInfo pNameProp = getPropInfoByPName(pName);
+                            String cname = pNameProp.getCname();
+                            if (i == 0) {
+                                matchNames += cname;
                             } else {
-                                setvlcds(sb, pm, p);
+                                matchNames += (","+cname);
+                            }
+                        }
+                        sb.append(String.format(pm.getOperators().getValue(), matchNames));
+
+                    } else {
+                        for (PropInfo p : getPropInfos()) {
+                            if (p.getPname().equals(pm.getPname())) {
+                                if (pm.getCdType().equals(PmType.OG)) {//原生类型
+                                    setogcds(sb, pm, p);
+
+                                } else { //值类型 或 函数
+                                    setvlcds(sb, pm, p);
+                                }
                             }
                         }
                     }
+
                     pm = pm.getOrParam();
                     if (pm != null) {
                         sb.append(KSentences.OR.getValue());
                     }
                 } while (pm != null);
-                if (isor) {
+
+                if (hasOr) {
                     sb.append(")");
                 }
-                if (pmsite.hasNext()) {
+                if (pmsIterator.hasNext()) {
                     sb.append(KSentences.AND.getValue());
                 }
             }
@@ -3607,21 +3733,40 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         sbd.append(p.getCname());
         if (p.getType() == String.class && p.getLength() > p.getIndex().length()) {
             if ("MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
-                sbd.append("(").append(p.getIndex().length()).append(")");
+                if (p.getIndex().length() > 0) {
+                    sbd.append("(").append(p.getIndex().length()).append(")");
+                }
             }
         }
-        if (p.getIndex().otherPropName() != null && !"".equals(p.getIndex().otherPropName().trim())) {
-            String[] pNames = p.getIndex().otherPropName().split(",");
-            for (String pName : pNames) {
-                PropInfo propInfo = getPropInfoByPName(pName);
+        if (p.getIndex().otherPropName()!=null && p.getIndex().otherPropName().length!=0) {
+            for (Other other : p.getIndex().otherPropName()) {
+                PropInfo propInfo = getPropInfoByPName(other.name());
                 sbd.append(KSentences.COMMA.getValue()).append(propInfo.getCname());
-                if (propInfo != null) {
-                    if (propInfo.getType() == String.class) {
-                        if ("MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
-                            //String 类型的字段最好指定索引长度,例如18位身份证号可以指定20位长度 , 超过255不适合创建索引, 255内适合建立索引,
-                            sbd.append("(").append(p.getIndex().length()).append(")");
-                        }
-                    }
+                if (other.length() > 0) {
+                    sbd.append("(").append(other.length()).append(")");
+                }
+            }
+        }
+        return sbd.toString();
+    }
+
+    private String getFullTextIndexColumns(PropInfo p) {
+        StringBuilder sbd = new StringBuilder();
+        MyIndexFullText fullTextIndex = p.getFullTextIndex();
+        sbd.append(p.getCname());
+        if (p.getType() == String.class && p.getLength() > fullTextIndex.length()) {
+            if ("MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
+                if (fullTextIndex.length() > 0) {
+                    sbd.append("(").append(fullTextIndex.length()).append(")");
+                }
+            }
+        }
+        if (fullTextIndex.otherPropName()!=null && fullTextIndex.otherPropName().length!=0) {
+            for (Other other : fullTextIndex.otherPropName()) {
+                PropInfo propInfo = getPropInfoByPName(other.name());
+                sbd.append(KSentences.COMMA.getValue()).append(propInfo.getCname());
+                if (other.length() > 0) {
+                    sbd.append("(").append(other.length()).append(")");
                 }
             }
         }

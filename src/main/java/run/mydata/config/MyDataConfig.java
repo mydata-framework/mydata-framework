@@ -29,7 +29,7 @@ public class MyDataConfig {
         ConnectionManager connectionManager = new ConnectionManager();
         connectionManager.setDdl(properties.getDdl());
         connectionManager.setShowSql(properties.getShowSql());
-        connectionManager.setConnectStr(properties.getConnectCharset() == null || properties.getConnectCharset().trim().length() == 0 ? "set names utf8" : "set names "+properties.getConnectCharset());
+        connectionManager.setConnectStr(properties.getConnectCharset() == null || properties.getConnectCharset().trim().length() == 0 ? "set names utf8mb4" : "set names "+properties.getConnectCharset());
         connectionManager.setDb(properties.getDb());
 
         connectionManager.setDataSource(dataSource);
