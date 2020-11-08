@@ -317,7 +317,7 @@ public class Param {
         return getStringArr(ag);
     }
 
-    public static String MATCH(String... ag) {
+    public static String match(String... ag) {
         String matchField = "";
         for (int i = 0; i < ag.length; i++) {
             if (i == 0) {
