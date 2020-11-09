@@ -64,6 +64,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     //if has table charset , this is table charset content
     private String tableCharset;
 
+    //is use global table id
+    private boolean isUseGlobalTableId=false;
+
     //connection Manager
     public abstract IConnectionManager getConnectionManager();
 
@@ -141,6 +144,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 //if domain ID @GeneratedValue strategy use TABLE , may be want split table, we need use global table id
                 boolean isUseGlobalTableId = propInfos.stream().anyMatch(p -> GenerationType.TABLE.equals(p.getGeneratorValueAnnoStrategyVal()));
                 if (isUseGlobalTableId) {
+                    this.isUseGlobalTableId=isUseGlobalTableId;
                     //TUSER_SEQ_ID
                     String idTableName = getIdTableName(tableName);
                     //if global table id TABLE not exist , create that
@@ -223,7 +227,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                 changeToString(pi);
                             } else if ((cn.getSqlTypes() == Types.INTEGER || cn.getSqlTypes() == Types.BIGINT)
                                     && (pi.getType() == Double.class || pi.getType() == Float.class)) {
-                                for (String t : getCurrentTables()) {
+                                for (String t : getCurrentTableNames()) {
                                     String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(), getPrecisionDatatype(pi.getType().getSimpleName()));
                                     PreparedStatement preparedStatement = connection.prepareStatement(altertablesql);
                                     if (this.isShowSql) {
@@ -238,7 +242,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                 Field fd = domainClazz.getDeclaredField(pi.getPname());
                                 Temporal tp = fd.getAnnotation(Temporal.class);
                                 if (tp != null && tp.value().equals(TemporalType.TIMESTAMP)) {
-                                    for (String t : getCurrentTables()) {
+                                    for (String t : getCurrentTableNames()) {
                                         String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(), getTimestampType());
                                         PreparedStatement preparedStatement = connection.prepareStatement(altertablesql);
                                         if (this.isShowSql) {
@@ -266,7 +270,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     }
                     if (sb.length() > 0) {
                         String avl = sb.toString();
-                        Set<String> currentTables = getCurrentTables();
+                        Set<String> currentTables = getCurrentTableNames();
                         connection = this.getConnectionManager().getConnection();
                         for (String t : currentTables) {
                             try {
@@ -606,7 +610,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             //if current column has index
             if (indexIsNeedCreate(tableName, prop)) {
                 //foreach current domains all tables , may be split table ,  has more than 1
-                for (String tableNameOfTables : getCurrentTables()) {
+                for (String tableNameOfTables : getCurrentTableNames()) {
                     //check current table item is has this index
                     if (indexIsNeedCreate(tableNameOfTables, prop)) {
                         //if not has , then create this index
@@ -636,7 +640,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
             if (fullTextIndexIsNeedCreate(tableName, prop)) {
                 //foreach current domains all tables , may be split table ,  has more than 1
-                for (String tableNameOfTables : getCurrentTables()) {
+                for (String tableNameOfTables : getCurrentTableNames()) {
                     //check current table item is has this index
                     if (fullTextIndexIsNeedCreate(tableNameOfTables, prop)) {
                         //if not has , then create this index
@@ -669,7 +673,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         }
     }
 
-    protected Set<String> getCurrentTables() {
+    protected Set<String> getCurrentTableNames() {
         ConcurrentSkipListSet<String> tbns = DOMAINCLASS_TABLES_MAP.get(domainClazz);
         if (tbns == null) {
             synchronized (DOMAINCLASS_TABLES_MAP) {
@@ -680,6 +684,38 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
         }
         return tbns;
+    }
+
+    protected TreeMap<Integer, String> getCurrentTableNamesTreeMap(){
+        Set<String> currentTables = this.getCurrentTableNames();
+        TreeMap<Integer, String> treeMap = new TreeMap<>();
+        for (String tableName : currentTables) {
+            if (tableName.equalsIgnoreCase(this.firstTableName)) {
+                treeMap.put(0, tableName);
+            } else {
+                treeMap.put(Integer.valueOf(tableName.substring(tableName.lastIndexOf("_") + 1)), tableName);
+            }
+        }
+        return treeMap;
+    }
+
+    protected List<String> getCurrentTableNamesOrderAsc(){
+        TreeMap<Integer, String> treeMap = this.getCurrentTableNamesTreeMap();
+        List<String> tableNameList = new ArrayList<>();
+        for (Entry<Integer, String> en : treeMap.entrySet()) {
+            String tableName = en.getValue();
+            tableNameList.add(tableName);
+        }
+        return tableNameList;
+    }
+
+    protected List<String> getCurrentTableNamesOrderDesc(){
+        List<String> currentTablesOrderAscList = this.getCurrentTableNamesOrderAsc();
+        List<String> tableNameList = new ArrayList<>();
+        for (int i = currentTablesOrderAscList.size()-1; i >=0 ; i--) {
+            tableNameList.add(currentTablesOrderAscList.get(i));
+        }
+        return tableNameList;
     }
 
     private boolean indexIsNeedCreate(String tableName, PropInfo prop) throws SQLException {
@@ -866,7 +902,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public Integer update(Set<Param> pms, Map<String, Object> newValues) {
-        if (getCurrentTables().size() < 1) {
+        if (getCurrentTableNames().size() < 1) {
             return 0;
         }
         try {
@@ -913,7 +949,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public Integer delete(Set<Param> pms) {
-        if (getCurrentTables().size() < 1) {
+        if (getCurrentTableNames().size() < 1) {
             return 0;
         }
         return deleteByCondition(pms);
@@ -1330,7 +1366,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private Double getStatisticsValue(Boolean isRead, StatisticsType functionName, String property, Set<Param> pms) {
         if (property != null && functionName != null) {
-            if (getCurrentTables().size() < 1) {
+            if (getCurrentTableNames().size() < 1) {
                 return 0d;
             }
             try {
@@ -1470,7 +1506,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private List<POJO> getListOrderBy(Boolean isRead, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls) {
-        return getRztPos(isRead, 1, Integer.MAX_VALUE / getCurrentTables().size(), orderbys, pms, cls);
+        return getRztPos(isRead, 1, Integer.MAX_VALUE / getCurrentTableNames().size(), orderbys, pms, cls);
     }
 
     @Override
@@ -1838,10 +1874,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private List<POJO> getAllOrderBy(Boolean isRead, LinkedHashSet<OrderBy> orderbys, String... cls) {
-        if (getCurrentTables().size() < 1) {
+        if (getCurrentTableNames().size() < 1) {
             return new ArrayList<>(0);
         }
-        return getRztPos(isRead, 1, Integer.MAX_VALUE / getCurrentTables().size(), orderbys, null, cls);
+        return getRztPos(isRead, 1, Integer.MAX_VALUE / getCurrentTableNames().size(), orderbys, null, cls);
     }
 
     @Override
@@ -2117,7 +2153,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         Field idkey = checkPrimarykey(fields, tbe);
 
         StringBuilder sb = new StringBuilder(KSentences.INSERT.getValue());
-        String tableSharding = tableSharding(pojo, fields, tbe.getKey());
+        String tableSharding = tableSharding(pojo, fields, tbe.getKey());//pojo , declaredFields , this.firstTableName
         sb.append(tableSharding);
         sb.append("(");
         Iterator<PropInfo> clite = tbe.getValue().iterator();
@@ -2225,7 +2261,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 }
                 //current field has split flag , get table index   by current field type and split rule
                 long max = getTableMaxIdx(field.get(pojo), field.getType(), columnRule);
-                Set<String> currentTables = getCurrentTables();
+                Set<String> currentTables = getCurrentTableNames();
                 if (currentTables.size() >= maxTableCount) {
                     String err = String.format("out of range for split table max num %s ; 超出了表拆分最大数量 , 最多只能拆分%s个表", maxTableCount, maxTableCount);
                     throw new IllegalStateException(err);
@@ -2314,11 +2350,11 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 if (this.isShowSql) {
                     log.info(sql);
                 }
-                getCurrentTables().add(ctbname);
+                getCurrentTableNames().add(ctbname);
             } else if ("Oracle".equalsIgnoreCase(this.dataBaseTypeName)) {
                 boolean create = createTableBySql(ctbname);
                 if (create) {
-                    getCurrentTables().add(ctbname);
+                    getCurrentTableNames().add(ctbname);
                 }
             }
         }
@@ -2348,7 +2384,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private int deleteByCondition(Set<Param> pms) {
-        if (getCurrentTables().size() < 1) {
+        if (getCurrentTableNames().size() < 1) {
             return 0;
         }
         try {
@@ -2556,7 +2592,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private Boolean isNotOneResult(Set<Param> params) {
         // zero table
-        if (getCurrentTables().size() < 1) {
+        if (getCurrentTableNames().size() < 1) {
             return true;
         }
         // in empty
@@ -2867,46 +2903,50 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     return getQvcSum(getMultiTableCount(isRead, params, tbs));
                 }
             } else {
-                StringBuilder sb = new StringBuilder(KSentences.SELECT.getValue());
-                sb.append(KSentences.COUNT.getValue());
-                sb.append(KSentences.LEFT_BRACKETS.getValue());
-                if (isArrayEffective(distincts)) {
-                    sb.append(KSentences.DISTINCT.getValue());
-                    for (int i = 0; i < distincts.length; i++) {
-                        String ps = distincts[i];
-                        for (PropInfo p : getPropInfos()) {
-                            if (p.getPname().equals(ps.trim())) {
-                                sb.append(p.getCname());
-                                break;
-                            }
-                        }
-                        if (i < distincts.length - 1) {
-                            sb.append(KSentences.COMMA.getValue());
-                        }
-                    }
-                } else {
-                    sb.append("*");
-                }
-                sb.append(KSentences.RIGHT_BRACKETS.getValue()).append(KSentences.FROM.getValue()).append(tbs.iterator().next());
-                sb.append(getWhereSqlByParam(params));
-                String sql = sb.toString();
-                PreparedStatement statement = getPreParedStatement(isRead, params, sql);
-                if (this.isShowSql) {
-                    log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement, sql));/*log.info(sql);*/
-                }
-                ResultSet rs = statement.executeQuery();
-                if (rs.next()) {
-                    return rs.getLong(1);
-                } else {
-                    return 0L;
-                }
+                String signleTableName = tbs.iterator().next();
+                return this.getSingleTableCount(isRead,signleTableName,params,distincts);
             }
         } catch (Exception e) {
             throw new IllegalStateException(e);
         } finally {
             closeConnection();
         }
+    }
 
+    private Long getSingleTableCount(Boolean isRead, String tableName,Set<Param> params,String... distincts) throws SQLException {
+        StringBuilder sb = new StringBuilder(KSentences.SELECT.getValue());
+        sb.append(KSentences.COUNT.getValue());
+        sb.append(KSentences.LEFT_BRACKETS.getValue());
+        if (isArrayEffective(distincts)) {
+            sb.append(KSentences.DISTINCT.getValue());
+            for (int i = 0; i < distincts.length; i++) {
+                String ps = distincts[i];
+                for (PropInfo p : getPropInfos()) {
+                    if (p.getPname().equals(ps.trim())) {
+                        sb.append(p.getCname());
+                        break;
+                    }
+                }
+                if (i < distincts.length - 1) {
+                    sb.append(KSentences.COMMA.getValue());
+                }
+            }
+        } else {
+            sb.append("*");
+        }
+        sb.append(KSentences.RIGHT_BRACKETS.getValue()).append(KSentences.FROM.getValue()).append(tableName);
+        sb.append(getWhereSqlByParam(params));
+        String sql = sb.toString();
+        PreparedStatement statement = getPreParedStatement(isRead, params, sql);
+        if (this.isShowSql) {
+            log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(statement, sql));/*log.info(sql);*/
+        }
+        ResultSet rs = statement.executeQuery();
+        if (rs.next()) {
+            return rs.getLong(1);
+        } else {
+            return 0L;
+        }
     }
 
     @Override
@@ -3551,7 +3591,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                         int len = getTableName(st, tbimp.getKey())
                                                 .split(KSentences.SHARDING_SPLT.getValue()).length;
 
-                                        long ed = getCurrentTables().stream().mapToLong(n -> {
+                                        long ed = getCurrentTableNames().stream().mapToLong(n -> {
                                             String[] arr = n.split(KSentences.SHARDING_SPLT.getValue());
                                             if (arr.length == len) {
                                                 return Long.valueOf(arr[arr.length - 1]);
@@ -3572,7 +3612,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
         }
 
-        return getCurrentTables();
+        return getCurrentTableNames();
     }
 
     private Set<String> gettbs(Entry<String, LinkedHashSet<PropInfo>> tbimp, long st, long ed) {
@@ -3592,7 +3632,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private boolean isContainsTable(String tbname) {
-        Iterator<String> ite = getCurrentTables().iterator();
+        Iterator<String> ite = getCurrentTableNames().iterator();
         while (ite.hasNext()) {
             String tn = ite.next();
             if (tn.trim().equalsIgnoreCase(tbname.trim())) {
@@ -3647,7 +3687,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     //check table is created , is exist
     private boolean isExistTable(String tblname) {
-        Set<String> tbns = getCurrentTables();
+        Set<String> tbns = getCurrentTableNames();
         for (String tn : tbns) {
             if (tn.trim().equalsIgnoreCase(tblname.trim())) {
                 return true;
@@ -3709,7 +3749,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private void changeToString(PropInfo pi) throws SQLException {
-        for (String t : getCurrentTables()) {
+        for (String t : getCurrentTableNames()) {
             String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, pi.getCname(), getVarchar(pi));
             if (this.getConnectionManager().isShowSql()) {
                 log.info(altertablesql);
@@ -3790,5 +3830,47 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     public void setShowSql(boolean showSql) {
         isShowSql = showSql;
     }
+
+//    @Override
+//    public List<POJO> getListOrderByTableNameDesc(int curPage, int pageSize,Set<Param> pms,LinkedHashSet<OrderBy> orderbys,String... cls){
+//        try {
+//            if (curPage < 1 || pageSize < 1) {
+//                return new ArrayList<>(0);
+//            }
+//            if (this.isNotOneResult(pms)) {
+//                return new ArrayList<>(0);
+//            }
+//            //single table
+//            if (!isUseGlobalTableId) {
+//                return this.getPageList(curPage,pageSize,pms,orderbys,cls);
+//            }else{//more table
+//                List<POJO> resultList = new ArrayList<>();
+//                //对表进行排序, 通过表倒序依次查询获得结果
+//                List<String> currentTablesOrderDesc = this.getCurrentTableNamesOrderDesc();
+//                for (String tableName : currentTablesOrderDesc) {
+//                    Long count = this.getSingleTableCount(true, tableName, pms, null);
+//                    if (count > 0) {
+//
+//                        String whereSqlByParam = getWhereSqlByParam(pms);
+//                        String selectpre = getPreSelectSql(false, cls);
+//                        String orderBySql = getOrderBySql(orderbys);
+//                        String sql = getSingleTableSelectPagingSql(selectpre + tableName + whereSqlByParam + orderBySql, curPage, pageSize);
+//                        List<POJO> list = getSingleObject(true, pms, sql, cls);
+//                    }else{
+//
+//                    }
+//                    PreparedStatement statement = getStatementBySql(true, sql);
+//                    setWhereSqlParamValue(pms, statement);
+//                    resultList.addAll(list);
+//
+//                }
+//                return null;
+//            }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//            throw new IllegalArgumentException(e);
+//        }
+//    }
+
 
 }
