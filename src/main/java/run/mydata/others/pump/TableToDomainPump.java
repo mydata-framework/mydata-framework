@@ -208,6 +208,7 @@ public class TableToDomainPump implements ApplicationContextAware {
             sb.append("import javax.persistence.*; \n");
             sb.append("import java.sql.Time; \n");
             sb.append("import java.util.*; \n");
+            sb.append("import java.math.*; \n");
             if (pumpConfig.getUseLombok()) {
                 sb.append("import lombok.Data; \n");
             }
@@ -370,6 +371,7 @@ public class TableToDomainPump implements ApplicationContextAware {
         Short("smallint", "Short"),
         Integer("int", "Integer"),
         Long("bigint", "Long"),
+        BigDecimal("decimal", "BigDecimal"),
 
         StringChar("char", "String"),
         StringVarchar("varchar", "String"),
