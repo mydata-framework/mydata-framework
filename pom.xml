@@ -44,7 +44,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring.version>5.2.0.RELEASE</spring.version><!-- <spring.version>4.3.10.RELEASE</spring.version> -->
         <aspectj.version>1.8.8</aspectj.version><!-- <aspectj.version>1.8.8</aspectj.version> -->
-        <mysql.version>6.0.6</mysql.version><!-- <mysql.version>1.8.8</mysql.version> -->
+        <mysql.version>8.0.16</mysql.version><!-- <mysql.version>1.8.8</mysql.version> -->
         <persistence.version>1.0.2</persistence.version><!-- <persistence.version>1.8.8</persistence.version> 1.0.2-->
         <junit.version>4.11</junit.version><!-- <persistence.version>1.8.8</persistence.version> -->
         <log4j.version>1.7.18</log4j.version><!-- <persistence.version>1.8.8</persistence.version> -->
@@ -56,7 +56,7 @@
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
-            <version>${mysql.version}</version> <!--<version>5.1.38</version>-->
+            <version>${mysql.version}</version>-->
             <scope>provided</scope>
         </dependency>
         <!--pa-->
