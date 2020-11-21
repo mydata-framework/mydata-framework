@@ -9,5 +9,5 @@
     relase version
 ### 9.0 version 
     relase version 
-    * add properties mydata.connectCharset;
-    
+### 9.0 version 
+    relase version 
