@@ -3,6 +3,7 @@ package run.mydata.dao.base.impl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import run.mydata.annotation.ColumnRule;
+import run.mydata.annotation.ColumnType;
 import run.mydata.annotation.MyIndexFullText;
 import run.mydata.annotation.Other;
 import run.mydata.dao.base.IMyData;
@@ -86,26 +87,23 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     @PostConstruct
     public void init() {
         try {
-            //base init data
-            this.domainClazz = MyDataHelper.getDomainClassByDaoClass(this.getClass());
-            this.firstTableName = MyDataHelper.getFirstTableName(this.domainClazz);
-            this.dataBaseTypeName = MyDataHelper.getDataBaseTypeName(this.getConnectionManager());
-            this.tableComment = MyDataHelper.getTableColumn(this.domainClazz);
-            this.hasTableComment = this.tableComment == null ? false : true;
-            this.tableEngine = MyDataHelper.getTableEngine(this.domainClazz);
-            this.hasTableEngine = this.tableEngine == null ? false : true;
-            this.tableCharset = MyDataHelper.getTableCharset(this.domainClazz);
-            this.hasTableCharset = this.tableCharset == null ? false : true;
-            this.isShowSql = this.getConnectionManager().isShowSql();
-            this.isGenerateDdl = this.getConnectionManager().isDdl();
-            //domain column field properties
-            final Set<PropInfo> pps = getPropInfos();
-            //if ddl , generate ddl
-            if (this.isGenerateDdl) {
-                this.createFirstTable(pps);
+            //初始化过程
+            this.domainClazz = MyDataHelper.getDomainClassByDaoClass(this.getClass());//获取domain的class类型
+            this.firstTableName = MyDataHelper.getFirstTableName(this.domainClazz); //获取第一种表的名称, 因为默认mydata是用来自动分表的,如果单表则就是表名
+            this.dataBaseTypeName = MyDataHelper.getDataBaseTypeName(this.getConnectionManager());//数据库类型
+            this.tableComment = MyDataHelper.getTableColumn(this.domainClazz);//表备注
+            this.hasTableComment = this.tableComment == null ? false : true;//是否设置了表备注
+            this.tableEngine = MyDataHelper.getTableEngine(this.domainClazz);//表引擎
+            this.hasTableEngine = this.tableEngine == null ? false : true;//是否设置了表引擎
+            this.tableCharset = MyDataHelper.getTableCharset(this.domainClazz);//表字符集
+            this.hasTableCharset = this.tableCharset == null ? false : true;//是否设置了表字符集
+            this.isShowSql = this.getConnectionManager().isShowSql();//是否显示sql
+            this.isGenerateDdl = this.getConnectionManager().isDdl();//是否ddl
+            final Set<PropInfo> pps = getPropInfos();//表字段对象集
+            if (this.isGenerateDdl) {//如果设置ddl为true,则开始做建表操作
+                this.createFirstTable(pps);//建表
             }
-            //setting domain field mapping column type
-            this.setSqlType(pps);
+            this.setSqlType(pps);//设置实体字段与表字段sqlTypes的对应关系
         } catch (Exception e) {
             e.printStackTrace();
             log.info("[ MyData init error ]");
@@ -120,11 +118,17 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return propInfos;
     }
 
-    //create table
+    /**
+     * 建表
+     * @param propInfos 字段信息集
+     */
     private void createFirstTable(Set<PropInfo> propInfos) {
         try {
+            //表名称
             String tableName = this.firstTableName;
+            //获取连接
             Connection connection = this.getConnectionManager().getConnection();
+            //多数据库支持, 建议使用Mysql, 因为Oracle测试不足, 不建议使用
             if ("Oracle".equalsIgnoreCase(this.dataBaseTypeName)) {
                 if (propInfos.stream().anyMatch(p -> autoNextVal(p))) {
                     String seqName = getSequenceName(tableName);
@@ -141,7 +145,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
                 }
             } else if ("MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
-                //if domain ID @GeneratedValue strategy use TABLE , may be want split table, we need use global table id
+                //如果主键策略使用Table的处理,一般使用Table的目的是为了分表
                 boolean isUseGlobalTableId = propInfos.stream().anyMatch(p -> GenerationType.TABLE.equals(p.getGeneratorValueAnnoStrategyVal()));
                 if (isUseGlobalTableId) {
                     this.isUseGlobalTableId=isUseGlobalTableId;
@@ -198,10 +202,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     }
                 }
             }
-            //if table not exist , create that
+            //表不存在,创建表
             if (!isTableExists(connection, tableName)) {
-                //create table
-                createTableBySql(tableName);
+                //创建表
+                createTable(tableName);
                 //get table split rule
                 ColumnRule columnRule = getColumnRule();
                 //if need split , to split
@@ -213,7 +217,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     }
                 }
             } else {
-                //if table is exist
+                //表存在
                 List<PropInfo> cnames = getDbProps(tableName, connection);
                 if (cnames.size() < 1) {
                     cnames = getDbProps(tableName.toUpperCase(), connection);
@@ -222,13 +226,13 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 a:
                 for (PropInfo pi : propInfos) {
                     for (PropInfo cn : cnames) {
-                        if (cn.getCname().equalsIgnoreCase(pi.getCname())) {
+                        if (cn.getColumnName().equalsIgnoreCase(pi.getColumnName())) {
                             if (cn.getSqlTypes() == Types.VARCHAR && cn.getLength().intValue() < pi.getLength()) {
                                 changeToString(pi);
                             } else if ((cn.getSqlTypes() == Types.INTEGER || cn.getSqlTypes() == Types.BIGINT)
-                                    && (pi.getType() == Double.class || pi.getType() == Float.class)) {
+                                    && (pi.getFieldTypeClass() == Double.class || pi.getFieldTypeClass() == Float.class)) {
                                 for (String t : getCurrentTableNames()) {
-                                    String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(), getPrecisionDatatype(pi.getType().getSimpleName()));
+                                    String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getColumnName(), getPrecisionDatatype(pi.getFieldTypeClass().getSimpleName()));
                                     PreparedStatement preparedStatement = connection.prepareStatement(altertablesql);
                                     if (this.isShowSql) {
                                         log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement, altertablesql));/*log.info(altertablesql);*/
@@ -236,14 +240,14 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                     preparedStatement.executeUpdate();
                                 }
                             } else if ((cn.getSqlTypes() == Types.INTEGER || cn.getSqlTypes() == Types.BIGINT)
-                                    && pi.getType() == String.class && !pi.getIsLob()) {
+                                    && pi.getFieldTypeClass() == String.class && !pi.getIsLob()) {
                                 changeToString(pi);
-                            } else if (cn.getSqlTypes() == Types.DATE && pi.getType() == Date.class) {
-                                Field fd = domainClazz.getDeclaredField(pi.getPname());
+                            } else if (cn.getSqlTypes() == Types.DATE && pi.getFieldTypeClass() == Date.class) {
+                                Field fd = domainClazz.getDeclaredField(pi.getFieldName());
                                 Temporal tp = fd.getAnnotation(Temporal.class);
                                 if (tp != null && tp.value().equals(TemporalType.TIMESTAMP)) {
                                     for (String t : getCurrentTableNames()) {
-                                        String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getCname(), getTimestampType());
+                                        String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, cn.getColumnName(), getTimestampType());
                                         PreparedStatement preparedStatement = connection.prepareStatement(altertablesql);
                                         if (this.isShowSql) {
                                             log.info(this.getConnectionManager().getMyDataShowSqlBean().showSqlForLog(preparedStatement, altertablesql));/*log.info(altertablesql);*/
@@ -317,11 +321,15 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     //setting domain field mapping column type
     private void setSqlType(Set<PropInfo> pps) {
         try {
+            //获取连接
             Connection connection = this.getConnectionManager().getConnection();
+            //获取表所有字段信息
             ResultSet crs = connection.getMetaData().getColumns(connection.getCatalog(), null, this.firstTableName, null);
+            //遍历表字段
             while (crs.next()) {
+                //匹配表字段
                 for (PropInfo o : pps) {
-                    if (crs.getString("COLUMN_NAME").equals(o.getCname())) {
+                    if (crs.getString("COLUMN_NAME").equals(o.getColumnName())) {
                         o.setSqlTypes(crs.getInt("DATA_TYPE"));
                         break;
                     }
@@ -346,8 +354,14 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         return insertIdtable;
     }
 
-    private boolean createTableBySql(String tableName) throws SQLException {
-        String csql = createTable(tableName);
+    /**
+     * 创建表
+     * @param tableName
+     * @return
+     * @throws SQLException
+     */
+    private boolean createTable(String tableName) throws SQLException {
+        String csql = getCreateTableSql(tableName);
         if (csql != null && csql.trim().length() > 0) {
             //execute create table sql
             PreparedStatement preparedStatement = this.getConnectionManager().getConnection().prepareStatement(csql);
@@ -364,7 +378,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     //auto create table from domain field column properties info, default support MYSQL , if use other db , please override this method
-    protected String createTable(String tableName) {
+    protected String getCreateTableSql(String tableName) {
         Set<PropInfo> props = getPropInfos();
         if (props.size() > 0) {
             //CREATE TABLE USER (
@@ -409,91 +423,167 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private String getMysqlColumnLine(PropInfo p) {
         StringBuilder ctsb = new StringBuilder();
-        ctsb.append("`").append(p.getCname()).append("` ");
-        if (p.getType() == Integer.class) {
-            ctsb.append("INT");
-        } else if (p.getType() == Float.class) {
-            ctsb.append("FLOAT");
-        } else if (p.getType() == Long.class) {
-            ctsb.append("BIGINT");
-        } else if (p.getType() == Double.class) {
-            ctsb.append("Double");
-        } else if (p.getType() == Boolean.class) {
-            ctsb.append("BIT");
-        } else if (p.getType() == Byte.class) {
-            ctsb.append("TINYINT");
-        } else if (p.getType() == Short.class) {
-            ctsb.append("SMALLINT");
-        } else if (p.getType() == BigDecimal.class) {
-            ctsb.append("DECIMAL");
-        } else if (p.getType() == Date.class) {
+        //表名,例如`username`
+        String columnName = p.getColumnName();
+        ctsb.append("`").append(columnName).append("` ");
+        //字段类型例如, varchar
+        ColumnType columnType = p.getColumnType();
+        String customColumnType = null;
+        if (columnType != null) {
+            customColumnType = columnType.value();
+        }
+        if (p.getFieldTypeClass() == Boolean.class) {
+            ctsb.append(getColumnTypeSelect("BIT", customColumnType));
+            if (p.getLength() != null && p.getLength() != 255) {
+                ctsb.append("(").append(p.getLength()).append(")");
+            }
+        }
+        else if (p.getFieldTypeClass() == Byte.class) {
+            ctsb.append(getColumnTypeSelect("TINYINT", customColumnType));
+            if (p.getLength() != null && p.getLength() != 255) {
+                ctsb.append("(").append(p.getLength()).append(")");
+            }
+        }
+        else if (p.getFieldTypeClass() == Short.class) {
+            ctsb.append(getColumnTypeSelect("SMALLINT",customColumnType));
+            if (p.getLength() != null && p.getLength() != 255) {
+                ctsb.append("(").append(p.getLength()).append(")");
+            }
+        }
+        else if (p.getFieldTypeClass() == Integer.class) {
+            ctsb.append(getColumnTypeSelect("INT",customColumnType));
+            if (p.getLength() != null && p.getLength() != 255) {
+                ctsb.append("(").append(p.getLength()).append(")");
+            }
+        }
+        else if (p.getFieldTypeClass() == Long.class) {
+            ctsb.append(getColumnTypeSelect("BIGINT",customColumnType));
+            if (p.getLength() != null && p.getLength() != 255) {
+                ctsb.append("(").append(p.getLength()).append(")");
+            }
+        }
+        else if (p.getFieldTypeClass() == Float.class) {
+            ctsb.append(getColumnTypeSelect("FLOAT",customColumnType));
+            if (p.getLength() != null && p.getLength() != 255) {
+                ctsb.append("(").append(p.getLength()).append(")");
+            }
+        }
+        else if (p.getFieldTypeClass() == Double.class) {
+            ctsb.append(getColumnTypeSelect("DOUBLE",customColumnType));
+            if (p.getLength() != null && p.getLength() != 255) {
+                ctsb.append("(").append(p.getLength()).append(")");
+            }
+        }
+        else if (p.getFieldTypeClass() == BigDecimal.class) {
+            ctsb.append(getColumnTypeSelect("DECIMAL",customColumnType));
+            if (p.getMoreLength() == null || p.getMoreLength().trim().length() == 0) {
+                if (p.getLength() != null && p.getLength() != 255) {
+                    ctsb.append("("+p.getLength()+",2)");
+                } else {
+                    ctsb.append("(10,2)");
+                }
+            } else {
+                ctsb.append("(").append(p.getMoreLength()).append(")");
+            }
+        }
+        else if (p.getFieldTypeClass() == Character.class){
+            ctsb.append(getColumnTypeSelect("CHAR",customColumnType));
+            if (p.getLength() != null && p.getLength() != 255) {
+                ctsb.append("(").append(p.getLength()).append(")");
+            }
+        }
+        else if (p.getFieldTypeClass() == byte[].class) {
+            ctsb.append(getColumnTypeSelect("LONGBLOB",customColumnType));
+            if (p.getLength() != null && p.getLength() != 255) {
+                ctsb.append("(").append(p.getLength()).append(")");
+            }
+        }
+        else if (p.getFieldTypeClass() == String.class) {
+            if (p.getIsLob()) {
+                ctsb.append("LONGTEXT");
+                if (p.getLength() != null && p.getLength() != 255) {
+                    ctsb.append("(").append(p.getLength()).append(")");
+                }
+            } else {
+                ctsb.append(getColumnTypeSelect("VARCHAR",customColumnType));
+                if (p.getLength() != null && p.getLength() != 255) {
+                    ctsb.append("(").append(p.getLength()).append(")");
+                } else {
+                    ctsb.append("(255)");
+                }
+            }
+        }
+        else if (p.getFieldTypeClass() == Date.class) {
             try {
-                Field fd = domainClazz.getDeclaredField(p.getPname());
+                Field fd = domainClazz.getDeclaredField(p.getFieldName());
                 Temporal tp = fd.getAnnotation(Temporal.class);
                 if (tp != null && tp.value().equals(TemporalType.TIMESTAMP)) {
                     ctsb.append(getTimestampType());
                 } else if (tp != null && tp.value().equals(TemporalType.TIME)) {
                     ctsb.append("TIME");
                 } else {
-                    ctsb.append("DATE");
+                    ctsb.append(getColumnTypeSelect("DATE",customColumnType));
                 }
             } catch (NoSuchFieldException | SecurityException e) {
                 e.printStackTrace();
                 throw new IllegalStateException(e);
             }
-        } else if (p.getType() == Time.class) {
+        }
+        else if (p.getFieldTypeClass() == Time.class) {
             ctsb.append("TIME");
-        } else if (p.getType() == Timestamp.class) {
+        }
+        else if (p.getFieldTypeClass() == Timestamp.class) {
             ctsb.append(getTimestampType());
-        } else if (p.getType() == String.class) {
-            if (p.getIsLob()) {
-                ctsb.append("LONGTEXT");
-            } else {
-                ctsb.append("VARCHAR(").append(p.getLength()).append(")");
-            }
-        } else if (p.getType() == byte[].class) {
-            ctsb.append("LONGBLOB");
-        } else if (p.getType().isEnum()) {
+        }
+        else if (p.getFieldTypeClass().isEnum()) {
             try {
-                Field fd = domainClazz.getDeclaredField(p.getPname());
+                Field fd = domainClazz.getDeclaredField(p.getFieldName());
                 Enumerated enm = fd.getAnnotation(Enumerated.class);
                 if (enm != null && enm.value() == EnumType.STRING) {
-                    ctsb.append("VARCHAR(").append(p.getLength()).append(")");
+                    ctsb.append("VARCHAR");
+                    if (p.getLength() != null) {
+                        ctsb.append("(").append(p.getLength()).append(")");
+                    }
                 } else {
                     ctsb.append("INT");
+                    if (p.getLength() != null && p.getLength() != 255) {
+                        ctsb.append("(").append(p.getLength()).append(")");
+                    }
                 }
             } catch (NoSuchFieldException | SecurityException e) {
                 e.printStackTrace();
                 throw new IllegalStateException(e);
             }
-        } else {
-            String type = p.getType().toString();
+        }
+        //不支持的字段类型
+        else {
+            String type = p.getFieldTypeClass().toString();
             String domainClazzName = this.domainClazz.getName();
             String err = String.format("POJO field type not support mapping to column %s,about class %s; POJO字段属性类型并不支持 %s,关注类 %s;", type, domainClazzName, type, domainClazzName);
             log.error(err);
             throw new IllegalStateException(err);
         }
 
-        if (!(p.getType() == String.class || p.getType().isEnum()) && p.getLength() != null && p.getLength() != 255 && p.getType() != BigDecimal.class) {
-            ctsb.append("(").append(p.getLength()).append(")");
-        }
+        //设置column长度
+        //if (!(p.getFieldTypeClass() == String.class || p.getFieldTypeClass().isEnum()) && p.getLength() != null && p.getLength() != 255 && p.getFieldTypeClass() != BigDecimal.class) {
+        //    ctsb.append("(").append(p.getLength()).append(")");
+        //}
 
-        if (p.getType() == BigDecimal.class) {
-            if (p.getMoreLength() == null || p.getMoreLength().trim().length() == 0) {
-                ctsb.append("(10,4)");
-            } else {
-                ctsb.append("(").append(p.getMoreLength()).append(")");
-            }
-        }
+        //if (p.getFieldTypeClass() == BigDecimal.class) {
+        //    if (p.getMoreLength() == null || p.getMoreLength().trim().length() == 0) {
+        //        ctsb.append("(10,4)");
+        //    } else {
+        //        ctsb.append("(").append(p.getMoreLength()).append(")");
+        //    }
+        //}
 
         if (p.getIsPrimarykey()) {
             ctsb.append(" PRIMARY KEY ");
-            String autoincrement = " AUTO_INCREMENT ";
             if (GenerationType.IDENTITY.equals(p.getGeneratorValueAnnoStrategyVal())) {
-                ctsb.append(autoincrement);
+                ctsb.append(" AUTO_INCREMENT ");
             } else {
                 if (GenerationType.AUTO.equals(p.getGeneratorValueAnnoStrategyVal())) {
-                    ctsb.append(autoincrement);
+                    ctsb.append(" AUTO_INCREMENT ");
                 }
             }
         } else {
@@ -507,7 +597,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         if (p.getComment() != null && !"".equals(p.getComment())) {
             ctsb.append(" ").append(KSentences.COMMENT.getValue()).append(" '").append(p.getComment()).append("' ");
         }
-        return ctsb.toString();
+        String columnLineSql = ctsb.toString();
+        return columnLineSql;
     }
 
     private String getTimestampType() {
@@ -522,20 +613,20 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     protected String getOracleColumnLine(PropInfo p) {
         StringBuilder sb = new StringBuilder();
-        sb.append(p.getCname()).append("   ");
-        if (p.getType() == Integer.class) {
+        sb.append(p.getColumnName()).append("   ");
+        if (p.getFieldTypeClass() == Integer.class) {
             sb.append("number(10,0)");
-        } else if (p.getType() == Float.class) {
+        } else if (p.getFieldTypeClass() == Float.class) {
             sb.append("float");
-        } else if (p.getType() == Long.class) {
+        } else if (p.getFieldTypeClass() == Long.class) {
             sb.append("number(19,0)");
-        } else if (p.getType() == Double.class) {
+        } else if (p.getFieldTypeClass() == Double.class) {
             sb.append("float");
-        } else if (p.getType() == Boolean.class) {
+        } else if (p.getFieldTypeClass() == Boolean.class) {
             sb.append("number(1,0)");
-        } else if (p.getType() == Date.class) {
+        } else if (p.getFieldTypeClass() == Date.class) {
             try {
-                Field fd = domainClazz.getDeclaredField(p.getPname());
+                Field fd = domainClazz.getDeclaredField(p.getFieldName());
                 Temporal tp = fd.getAnnotation(Temporal.class);
                 if (tp != null && tp.value().equals(TemporalType.TIMESTAMP)) {
                     sb.append("timestamp");
@@ -546,21 +637,21 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 e.printStackTrace();
                 throw new IllegalStateException(e);
             }
-        } else if (p.getType() == Time.class) {
+        } else if (p.getFieldTypeClass() == Time.class) {
             sb.append("date");
-        } else if (p.getType() == Timestamp.class) {
+        } else if (p.getFieldTypeClass() == Timestamp.class) {
             sb.append("timestamp");
-        } else if (p.getType() == String.class) {
+        } else if (p.getFieldTypeClass() == String.class) {
             if (p.getIsLob()) {
                 sb.append("clob");
             } else {
                 sb.append("varchar2(").append(p.getLength()).append(" char)");
             }
-        } else if (p.getType() == byte[].class) {
+        } else if (p.getFieldTypeClass() == byte[].class) {
             sb.append("blob");
-        } else if (p.getType().isEnum()) {
+        } else if (p.getFieldTypeClass().isEnum()) {
             try {
-                Field fd = domainClazz.getDeclaredField(p.getPname());
+                Field fd = domainClazz.getDeclaredField(p.getFieldName());
                 Enumerated enm = fd.getAnnotation(Enumerated.class);
                 if (enm != null && enm.value() == EnumType.STRING) {
                     sb.append("varchar2(").append(p.getLength()).append(" char)");
@@ -572,7 +663,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 throw new IllegalStateException(e);
             }
         } else {
-            String type = p.getType().toString();
+            String type = p.getFieldTypeClass().toString();
             String err = String.format("POJO field type not support mapping to column , %s ; POJO字段属性类型并不支持, %s ;", type, type);
             log.error(err);
             throw new IllegalStateException(err);
@@ -751,7 +842,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     } else {
                         idxNameKeyColumnNameValueMap.put(dbIndexName, dbColumnName);
                     }
-                    if (this.dataBaseTypeName.equalsIgnoreCase("Oracle") && dbIndexName.startsWith("SYS_") && dbColumnName.equalsIgnoreCase(prop.getCname())) {
+                    if (this.dataBaseTypeName.equalsIgnoreCase("Oracle") && dbIndexName.startsWith("SYS_") && dbColumnName.equalsIgnoreCase(prop.getColumnName())) {
                         return false;
                     }
                 }
@@ -789,7 +880,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     } else {
                         idxNameKeyColumnNameValueMap.put(dbIndexName, dbColumnName);
                     }
-                    if (this.dataBaseTypeName.equalsIgnoreCase("Oracle") && dbIndexName.startsWith("SYS_") && dbColumnName.equalsIgnoreCase(prop.getCname())) {
+                    if (this.dataBaseTypeName.equalsIgnoreCase("Oracle") && dbIndexName.startsWith("SYS_") && dbColumnName.equalsIgnoreCase(prop.getColumnName())) {
                         return false;
                     }
                 }
@@ -807,17 +898,17 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private String getIndexNameOrigin(PropInfo p) {
         if (p.getIndex().name().equals("")) {
             if (p.getIndex().otherPropName() != null && p.getIndex().otherPropName().length != 0) {
-                String indexName = p.getCname();
+                String indexName = p.getColumnName();
                 Other[] otherArr = p.getIndex().otherPropName();
                 for (int i = 0; i < otherArr.length; i++) {
                     String pName = otherArr[i].name();
                     PropInfo pNameProp = getPropInfoByPName(pName);
-                    String cname = pNameProp.getCname();
+                    String cname = pNameProp.getColumnName();
                     indexName = ( indexName+"_"+cname );
                 }
                 return indexName;
             } else {
-                return p.getCname();
+                return p.getColumnName();
             }
         } else {
             return p.getIndex().name();
@@ -830,17 +921,17 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private String getFullTextIndexNameOrigin(PropInfo p) {
         if (p.getFullTextIndex().name().equals("")) {
             if (p.getFullTextIndex().otherPropName() != null && p.getFullTextIndex().otherPropName().length != 0) {
-                String fullTextIndexName = p.getCname();
+                String fullTextIndexName = p.getColumnName();
                 Other[] otherArr = p.getFullTextIndex().otherPropName();
                 for (int i = 0; i < otherArr.length; i++) {
                     String pName = otherArr[i].name();
                     PropInfo pNameProp = getPropInfoByPName(pName);
-                    String cname = pNameProp.getCname();
+                    String cname = pNameProp.getColumnName();
                     fullTextIndexName = ( fullTextIndexName+"_"+cname );
                 }
                 return fullTextIndexName;
             } else {
-                return p.getCname();
+                return p.getColumnName();
             }
         } else {
             return p.getFullTextIndex().name();
@@ -917,8 +1008,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     while (ite.hasNext()) {
                         Entry<String, Object> en = ite.next();
                         for (PropInfo p : pps) {
-                            if (p.getPname().equals(en.getKey())) {
-                                buf.append("`").append(p.getCname()).append("`").append(KSentences.EQ.getValue()).append(KSentences.POSITION_PLACEHOLDER.getValue());
+                            if (p.getFieldName().equals(en.getKey())) {
+                                buf.append("`").append(p.getColumnName()).append("`").append(KSentences.EQ.getValue()).append(KSentences.POSITION_PLACEHOLDER.getValue());
                                 if (ite.hasNext()) {
                                     buf.append(KSentences.COMMA.getValue());
                                 }
@@ -958,7 +1049,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     //check field name is Date type
     private boolean isDate(String property) {
         for (PropInfo p : getPropInfos()) {
-            if (p.getPname().equals(property)) {
+            if (p.getFieldName().equals(property)) {
                 if (p.getSqlTypes() == Types.DATE || p.getSqlTypes() == Types.TIME || p.getSqlTypes() == Types.TIMESTAMP) {
                     return true;
                 } else {
@@ -971,7 +1062,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public Date getMinDate(Set<Param> pms, String property) {
-        return getDateFuncValue(true, pms, property, StatisticsType.MIN);
+        return getDateFuncValue(getQueryIsRead(), pms, property, StatisticsType.MIN);
     }
 
     @Override
@@ -981,7 +1072,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public Date getMaxDate(Set<Param> pms, String property) {
-        return getDateFuncValue(true, pms, property, StatisticsType.MAX);
+        return getDateFuncValue(getQueryIsRead(), pms, property, StatisticsType.MAX);
     }
 
     @Override
@@ -991,7 +1082,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public <T> T nativeQuery(String sql, Object[] pms, Class<T> resultClass) {
-        return nativeQuery(true, sql, pms, resultClass);
+        return nativeQuery(getQueryIsRead(), sql, pms, resultClass);
     }
 
     @Override
@@ -1031,7 +1122,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public <T> List<T> nativeQueryList(String sql, Object[] pms, Class<T> resultClass) {
-        return nativeQueryList(true, sql, pms, resultClass);
+        return nativeQueryList(getQueryIsRead(), sql, pms, resultClass);
     }
 
     @Override
@@ -1069,7 +1160,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public <T> PageData<T> nativeQueryPage(int curPage, int pageSize, String sql, Object[] pms, Class<T> result) {
-        return nativeQueryPage(true, curPage, pageSize, sql, pms, result);
+        return nativeQueryPage(getQueryIsRead(), curPage, pageSize, sql, pms, result);
     }
 
     @Override
@@ -1356,7 +1447,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public Double getStatisticsValue(StatisticsType functionName, String property, Set<Param> pms) {
-        return getStatisticsValue(true, functionName, property, pms);
+        return getStatisticsValue(getQueryIsRead(), functionName, property, pms);
     }
 
     @Override
@@ -1409,8 +1500,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         StringBuffer sb = new StringBuffer(KSentences.SELECT.getValue());
         sb.append(functionName);
         for (PropInfo p : getPropInfos()) {
-            if (p.getPname().equals(property.trim())) {
-                sb.append(KSentences.LEFT_BRACKETS.getValue()).append(p.getCname()).append(KSentences.RIGHT_BRACKETS.getValue()).append(KSentences.FROM);
+            if (p.getFieldName().equals(property.trim())) {
+                sb.append(KSentences.LEFT_BRACKETS.getValue()).append(p.getColumnName()).append(KSentences.RIGHT_BRACKETS.getValue()).append(KSentences.FROM);
                 break;
             }
         }
@@ -1422,7 +1513,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public Long getCount(Set<Param> pms, String... distincts) {
-        return getCountPerTable(true, pms, distincts);
+        return getCountPerTable(getQueryIsRead(), pms, distincts);
     }
 
     @Override
@@ -1463,12 +1554,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<POJO> getList(Set<Param> pms, String... cls) {
-        return getRztPos(false, true, pms, cls);
+        return getRztPos(getQueryIsRead(), getQueryIsRead(), pms, cls);
     }
 
     @Override
     public List<POJO> getAll(String... cls) {
-        return getAll(true, cls);
+        return getAll(getQueryIsRead(), cls);
     }
 
     @Override
@@ -1487,7 +1578,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<POJO> getList(Set<Param> pms, boolean isDistinct, String... cls) {
-        return getRztPos(isDistinct, true, pms, cls);
+        return getRztPos(isDistinct, getQueryIsRead(), pms, cls);
     }
 
     @Override
@@ -1497,7 +1588,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<POJO> getListOrderBy(Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls) {
-        return getListOrderBy(true, pms, orderbys, cls);
+        return getListOrderBy(getQueryIsRead(), pms, orderbys, cls);
     }
 
     @Override
@@ -1511,7 +1602,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<POJO> getPageList(int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, String... cls) {
-        return getRztPos(true, curPage, pageSize, orderbys, pms, cls);
+        return getRztPos(getQueryIsRead(), curPage, pageSize, orderbys, pms, cls);
     }
 
     @Override
@@ -1526,7 +1617,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public PageData<POJO> getPageInfo(int curPage, int pageSize, Set<Param> pms, String... cls) {
-        return getListFromNotSorted(true, curPage, pageSize, pms, cls);
+        return getListFromNotSorted(getQueryIsRead(), curPage, pageSize, pms, cls);
     }
 
     @Override
@@ -1536,12 +1627,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<POJO> getPageList(int curPage, int pageSize, Set<Param> pms, String... cls) {
-        return getListFromNotSorted(true, curPage, pageSize, pms, cls).getDataList();
+        return getListFromNotSorted(getQueryIsRead(), curPage, pageSize, pms, cls).getDataList();
     }
 
     @Override
     public PageData<Object[]> getGroupPageInfo(int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
-        return getGroupPageInfo(true, curPage, pageSize, pms, orderbys, funs, groupby);
+        return getGroupPageInfo(getQueryIsRead(), curPage, pageSize, pms, orderbys, funs, groupby);
     }
 
     @Override
@@ -1563,7 +1654,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public Long getGroupbyCount(Set<Param> pms, String... groupby) {
-        return getGroupbyCount(true, pms, groupby);
+        return getGroupbyCount(getQueryIsRead(), pms, groupby);
     }
 
     @Override
@@ -1614,8 +1705,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
             StringBuilder sqlsb = new StringBuilder("SELECT COUNT(1) FROM  (SELECT count(");
             for (PropInfo prop : getPropInfos()) {
-                if (prop.getPname().equals(groupby[0].trim())) {
-                    sqlsb.append(prop.getCname());
+                if (prop.getFieldName().equals(groupby[0].trim())) {
+                    sqlsb.append(prop.getColumnName());
                     break;
                 }
             }
@@ -1662,8 +1753,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         for (int i = 0; i < groupby.length; i++) {
             String g = groupby[i];
             for (PropInfo p : getPropInfos()) {
-                if (p.getPname().equals(g)) {
-                    sb.append(p.getCname());
+                if (p.getFieldName().equals(g)) {
+                    sb.append(p.getColumnName());
                 }
             }
             if (i < groupby.length - 1) {
@@ -1675,7 +1766,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<Object[]> getGroupPageList(int curPage, int pageSize, Set<Param> pms, LinkedHashSet<OrderBy> orderbys, LinkedHashMap<String, String> funs, String... groupby) {
-        return getGroupPageList(true, curPage, pageSize, pms, orderbys, funs, groupby);
+        return getGroupPageList(getQueryIsRead(), curPage, pageSize, pms, orderbys, funs, groupby);
     }
 
     @Override
@@ -1719,8 +1810,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 while (enite.hasNext()) {
                     Entry<String, String> funen = enite.next();
                     for (PropInfo p : propInfos) {
-                        if (p.getPname().equals(funen.getValue())) {
-                            grpsql.append(funen.getKey().trim().toUpperCase()).append("(").append(p.getCname().trim()).append(")").append(KSentences.COMMA.getValue());
+                        if (p.getFieldName().equals(funen.getValue())) {
+                            grpsql.append(funen.getKey().trim().toUpperCase()).append("(").append(p.getColumnName().trim()).append(")").append(KSentences.COMMA.getValue());
                             break;
                         }
                     }
@@ -1731,8 +1822,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
              */
             for (int i = 0; i < groupby.length; i++) {
                 for (PropInfo p : propInfos) {
-                    if (groupby[i].equals(p.getPname())) {
-                        grpsql.append(p.getCname());
+                    if (groupby[i].equals(p.getFieldName())) {
+                        grpsql.append(p.getColumnName());
                         break;
                     }
                 }
@@ -1772,9 +1863,9 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         Set<Entry<String, String>> ens = funs.entrySet();
                         for (Entry<String, String> en : ens) {
                             if (en.getValue().equals(ob.getPropertyName())) {
-                                Optional<PropInfo> propInfoOptional = propInfos.stream().filter(p -> p.getPname().equals(en.getValue().trim())).findFirst();
+                                Optional<PropInfo> propInfoOptional = propInfos.stream().filter(p -> p.getFieldName().equals(en.getValue().trim())).findFirst();
                                 if (propInfoOptional.isPresent()) {
-                                    grpsql.append(en.getKey().trim().toUpperCase()).append("(").append(propInfoOptional.get().getCname()).append(")");
+                                    grpsql.append(en.getKey().trim().toUpperCase()).append("(").append(propInfoOptional.get().getColumnName()).append(")");
                                 } else {
                                     throw new IllegalArgumentException(String.format("In %s ,Can not find field %s", this.domainClazz.getSimpleName(), en.getValue()));
                                 }
@@ -1783,10 +1874,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     } else {
                         a:
                         for (PropInfo p : getPropInfos()) {
-                            if (p.getPname().equals(ob.getPropertyName())) {
+                            if (p.getFieldName().equals(ob.getPropertyName())) {
                                 for (String g : groupby) {
-                                    if (g.trim().equals(p.getPname())) {
-                                        grpsql.append(p.getCname().trim());
+                                    if (g.trim().equals(p.getFieldName())) {
+                                        grpsql.append(p.getColumnName().trim());
                                         break a;
                                     }
                                 }
@@ -1852,7 +1943,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 Param pm = pmite.next();
                 if (pm.getFunName() != null && pm.getFunName().length() > 0) {
                     for (PropInfo p : getPropInfos()) {
-                        if (p.getPname().equals(pm.getPname())) {
+                        if (p.getFieldName().equals(pm.getPname())) {
                             hvcs.add(pm);
                             pmite.remove();
                         }
@@ -1865,7 +1956,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<POJO> getAllOrderBy(LinkedHashSet<OrderBy> orderbys, String... cls) {
-        return getAllOrderBy(true, orderbys, cls);
+        return getAllOrderBy(getQueryIsRead(), orderbys, cls);
     }
 
     @Override
@@ -1882,7 +1973,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<POJO> getListByIdsIn(List<Serializable> ids, String... cls) {
-        return this.getListByIdsIn(true, ids, cls);
+        return this.getListByIdsIn(getQueryIsRead(), ids, cls);
     }
 
     @Override
@@ -1895,7 +1986,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             Set<PropInfo> pis = getPropInfos();
             for (PropInfo fd : pis) {
                 if (fd.getIsPrimarykey()) {
-                    return getRztPos(false, isRead, Param.getParams(new Param(fd.getPname(), ids)), cls);
+                    return getRztPos(false, isRead, Param.getParams(new Param(fd.getFieldName(), ids)), cls);
                 }
             }
         }
@@ -1904,7 +1995,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<POJO> getListByParamIn(String propertyName, List<Serializable> vls, String... cls) {
-        return this.getListByParamIn(true, propertyName, vls, cls);
+        return this.getListByParamIn(getQueryIsRead(), propertyName, vls, cls);
     }
 
     @Override
@@ -1916,8 +2007,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         if (vls != null && vls.size() > 0) {
             Set<PropInfo> pis = getPropInfos();
             for (PropInfo fd : pis) {
-                if (fd.getPname().equals(propertyName)) {
-                    return getRztPos(false, isRead, Param.getParams(new Param(fd.getPname(), vls)), cls);
+                if (fd.getFieldName().equals(propertyName)) {
+                    return getRztPos(false, isRead, Param.getParams(new Param(fd.getFieldName(), vls)), cls);
                 }
             }
         }
@@ -1928,7 +2019,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private String getPrimaryKeyPname() {
         for (PropInfo fd : getPropInfos()) {
             if (fd.getIsPrimarykey()) {
-                return fd.getPname();
+                return fd.getFieldName();
             }
         }
         String tableName = ConnectionManager.getTbinfo(domainClazz).entrySet().iterator().next().getKey();
@@ -1938,7 +2029,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public POJO getById(Serializable id, String... cls) {
-        return getById(true, id, cls);
+        return getById(getQueryIsRead(), id, cls);
     }
 
     @Override
@@ -1957,7 +2048,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 for (PropInfo fd : tbimp.getValue()) {
                     if (fd.getIsPrimarykey()) {
                         ColumnRule cr = fd.getColumnRule();
-                        Set<Param> pms = Param.getParams(new Param(fd.getPname(), Operate.EQ, id));
+                        Set<Param> pms = Param.getParams(new Param(fd.getFieldName(), Operate.EQ, id));
                         if (cr != null) {
                             List<POJO> rzlist = getSingleObj(isRead, id, tbimp, fd, cr, pms, strings);
                             if (rzlist.size() == 1) {
@@ -1985,7 +2076,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private List<POJO> getSingleObj(Boolean isRead, Serializable id, Entry<String, LinkedHashSet<PropInfo>> tbimp,
                                     PropInfo fd, ColumnRule cr, Set<Param> pms, String... strings) throws SQLException {
-        String tableName = getTableName(getTableMaxIdx(id, fd.getType(), cr), tbimp.getKey());
+        String tableName = getTableName(getTableMaxIdx(id, fd.getFieldTypeClass(), cr), tbimp.getKey());
         if (!isContainsTable(tableName)) {
             return new ArrayList<>(0);
         }
@@ -2003,7 +2094,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public POJO getOne(String propertyName, Serializable value, String... cls) {
-        return getObj(true, propertyName, value, cls);
+        return getObj(getQueryIsRead(), propertyName, value, cls);
     }
 
     @Override
@@ -2036,8 +2127,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         try {
             Entry<String, LinkedHashSet<PropInfo>> tbimp = ConnectionManager.getTbinfo(domainClazz).entrySet().iterator().next();
             for (PropInfo fd : tbimp.getValue()) {
-                if (fd.getPname().equals(propertyName)) {
-                    Set<Param> pms = Param.getParams(new Param(fd.getPname(), Operate.EQ, value));
+                if (fd.getFieldName().equals(propertyName)) {
+                    Set<Param> pms = Param.getParams(new Param(fd.getFieldName(), Operate.EQ, value));
                     if (value != null && fd.getColumnRule() != null) {
 
                         List<POJO> rzlist = getSingleObj(isRead, value, tbimp, fd, fd.getColumnRule(), pms, cls);
@@ -2065,7 +2156,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public POJO getOne(Set<Param> pms, String... cls) {
-        return this.getOne(true, pms, cls);
+        return this.getOne(getQueryIsRead(), pms, cls);
     }
 
     @Override
@@ -2158,7 +2249,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         sb.append("(");
         Iterator<PropInfo> clite = tbe.getValue().iterator();
         while (clite.hasNext()) {
-            sb.append("`").append(clite.next().getCname()).append("`");
+            sb.append("`").append(clite.next().getColumnName()).append("`");
             if (clite.hasNext()) {
                 sb.append(KSentences.COMMA.getValue());
             }
@@ -2352,7 +2443,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 }
                 getCurrentTableNames().add(ctbname);
             } else if ("Oracle".equalsIgnoreCase(this.dataBaseTypeName)) {
-                boolean create = createTableBySql(ctbname);
+                boolean create = createTable(ctbname);
                 if (create) {
                     getCurrentTableNames().add(ctbname);
                 }
@@ -2413,10 +2504,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private static boolean fieldPropertiesPaired(PropInfo propInfo, Field field) {
         Column clm = field.getAnnotation(Column.class);
         if (clm == null || clm.name().trim().length() < 1) {
-            if (propInfo.getCname().equalsIgnoreCase(field.getName())) {
+            if (propInfo.getColumnName().equalsIgnoreCase(field.getName())) {
                 return true;
             }
-        } else if (clm.name().equalsIgnoreCase(propInfo.getCname())) {
+        } else if (clm.name().equalsIgnoreCase(propInfo.getColumnName())) {
             return true;
         }
         return false;
@@ -2445,8 +2536,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 statement.setObject(index, null);
             } else {
                 Class<Enum> cls = (Class<Enum>) field.getType();
-                if (field.isAnnotationPresent(Enumerated.class)
-                        && field.getAnnotation(Enumerated.class).value() == EnumType.STRING) {
+                if (field.isAnnotationPresent(Enumerated.class) && field.getAnnotation(Enumerated.class).value() == EnumType.STRING) {
                     statement.setObject(index, vl.toString());
                 } else {
                     statement.setObject(index, Enum.valueOf(cls, vl.toString()).ordinal());
@@ -2466,7 +2556,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     statement.setObject(index, vl);
                 }
             } else {
-                if (vl != null && "Oracle".equalsIgnoreCase(this.dataBaseTypeName) && (propInfo.getType() == Date.class || propInfo.getType().getSuperclass() == Date.class)) {
+                if (vl != null && "Oracle".equalsIgnoreCase(this.dataBaseTypeName) && (propInfo.getFieldTypeClass() == Date.class || propInfo.getFieldTypeClass().getSuperclass() == Date.class)) {
                     Date dt = (Date) vl;
                     statement.setTimestamp(index, new Timestamp(dt.getTime()));
                 } else {
@@ -2480,7 +2570,11 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                             throw new IllegalArgumentException(error);
                         }
                     }
-                    statement.setObject(index, vl);
+                    if (vl instanceof java.lang.Character) {
+                        statement.setObject(index, vl.toString());
+                    } else {
+                        statement.setObject(index, vl);
+                    }
                 }
             }
         }
@@ -2523,7 +2617,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<Object> getVList(String property, Set<Param> params) {
-        return getRztPos(property, params, true, false);
+        return getRztPos(property, params, getQueryIsRead(), false);
     }
 
     @Override
@@ -2533,7 +2627,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     @Override
     public List<Object> getVList(String property, Set<Param> params, boolean isDistinct) {
-        return getRztPos(property, params, true, isDistinct);
+        return getRztPos(property, params, getQueryIsRead(), isDistinct);
     }
 
     @Override
@@ -2647,7 +2741,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     public PageData<POJO> getPageInfo(int curPage, int pageSize, Set<Param> params, LinkedHashSet<OrderBy> orderbys, String... strings) {
         Long count = this.getCount(params);
         if (count > 0) {
-            return new PageData<>(curPage, pageSize, count, getRztPos(true, curPage, pageSize, orderbys, params, strings));
+            return new PageData<>(curPage, pageSize, count, getRztPos(getQueryIsRead(), curPage, pageSize, orderbys, params, strings));
         } else {
             return new PageData<>(curPage, pageSize, count, new ArrayList<>(0));
         }
@@ -2922,8 +3016,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             for (int i = 0; i < distincts.length; i++) {
                 String ps = distincts[i];
                 for (PropInfo p : getPropInfos()) {
-                    if (p.getPname().equals(ps.trim())) {
-                        sb.append(p.getCname());
+                    if (p.getFieldName().equals(ps.trim())) {
+                        sb.append(p.getColumnName());
                         break;
                     }
                 }
@@ -2964,16 +3058,16 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             for (Field field : fds) {
                 if (fieldPropertiesPaired(propInfo, field)) {
                     Object propValue = getPropValue(po, field);
-                    if (propInfo.getPname().equals(primaryKeyName)) {
+                    if (propInfo.getFieldName().equals(primaryKeyName)) {
                         if (propValue != null) {
                             id = propValue;
-                            pms.add(new Param(propInfo.getPname(), Operate.EQ, id));
+                            pms.add(new Param(propInfo.getFieldName(), Operate.EQ, id));
                         } else {
                             throw new IllegalArgumentException("primary key not null ; 主键的值不能为空 ;");
                         }
                     } else if (propInfo.getVersion()) {
                         version = true;
-                        versionPname = propInfo.getPname();
+                        versionPname = propInfo.getFieldName();
                         pms.add(new Param(versionPname, Operate.EQ, propValue));
                         oldVersion = Long.parseLong(propValue.toString());
                         if (oldVersion == null) {
@@ -2989,7 +3083,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                             throw new IllegalArgumentException(error);
                         }
                     } else {
-                        newValues.put(propInfo.getPname(), propValue);
+                        newValues.put(propInfo.getFieldName(), propValue);
                     }
                 }
             }
@@ -3007,8 +3101,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     while (it.hasNext()) {
                         Entry<String, Object> entry = it.next();
                         for (PropInfo p : pps) {
-                            if (p.getPname().equals(entry.getKey())) {
-                                buf.append("`").append(p.getCname()).append("`").append(KSentences.EQ.getValue()).append(KSentences.POSITION_PLACEHOLDER.getValue());
+                            if (p.getFieldName().equals(entry.getKey())) {
+                                buf.append("`").append(p.getColumnName()).append("`").append(KSentences.EQ.getValue()).append(KSentences.POSITION_PLACEHOLDER.getValue());
                                 if (it.hasNext()) {
                                     buf.append(KSentences.COMMA.getValue());
                                 }
@@ -3112,14 +3206,14 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             while (ite.hasNext()) {
                 OrderBy ob = ite.next();
                 for (PropInfo p : getPropInfos()) {
-                    if (p.getPname().equals(ob.getPropertyName().trim())) {
+                    if (p.getFieldName().equals(ob.getPropertyName().trim())) {
                         if (ob.getFunName() != null && ob.getFunName().trim().length() > 0) {
                             sb.append(ob.getFunName());
                             sb.append("(");
-                            sb.append(p.getCname());
+                            sb.append(p.getColumnName());
                             sb.append(")");
                         } else {
-                            sb.append("`").append(p.getCname()).append("`");
+                            sb.append("`").append(p.getColumnName()).append("`");
                         }
                         if (ob.getIsDesc()) {
                             sb.append(KSentences.DESC.getValue());
@@ -3250,7 +3344,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     a:
                     for (int i = 0; i < strings.length; i++) {
                         for (PropInfo pi : pis) {
-                            if (pi.getPname().equals(strings[i])) {
+                            if (pi.getFieldName().equals(strings[i])) {
                                 Field fd = domainClazz.getDeclaredField(strings[i]);
                                 setPoValue(rs, po, i, fd);
                                 continue a;
@@ -3261,8 +3355,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                     a:
                     for (int i = 0; i < rs.getMetaData().getColumnCount(); i++) {
                         for (PropInfo pi : pis) {
-                            if (pi.getCname().equalsIgnoreCase(rs.getMetaData().getColumnName(i + 1))) {
-                                Field fd = domainClazz.getDeclaredField(pi.getPname());
+                            if (pi.getColumnName().equalsIgnoreCase(rs.getMetaData().getColumnName(i + 1))) {
+                                Field fd = domainClazz.getDeclaredField(pi.getFieldName());
                                 setPoValue(rs, po, i, fd);
                                 continue a;
                             }
@@ -3322,7 +3416,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                         for (int i = 0; i < pNames.length; i++) {
                             String pName = pNames[i];
                             PropInfo pNameProp = getPropInfoByPName(pName);
-                            String cname = pNameProp.getCname();
+                            String cname = pNameProp.getColumnName();
                             if (i == 0) {
                                 matchNames += cname;
                             } else {
@@ -3333,7 +3427,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
                     } else {
                         for (PropInfo p : getPropInfos()) {
-                            if (p.getPname().equals(pm.getPname())) {
+                            if (p.getFieldName().equals(pm.getPname())) {
                                 if (pm.getCdType().equals(PmType.OG)) {//原生类型
                                     setogcds(sb, pm, p);
 
@@ -3446,8 +3540,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private Class<?> getPmsType(Param pm) {
         for (PropInfo p : getPropInfos()) {
-            if (p.getPname().equals(pm.getPname())) {
-                return p.getType();
+            if (p.getFieldName().equals(pm.getPname())) {
+                return p.getFieldTypeClass();
             }
         }
         throw new IllegalArgumentException(String.format("% field not definition ; %s字段没有定义 ;", pm.getPname(), pm.getPname()));
@@ -3455,10 +3549,10 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private void setcName(StringBuilder sb, Param pm, PropInfo p) {
         if (!pm.getCdType().equals(PmType.FUN)) {
-            sb.append("`").append(p.getCname()).append("`");
+            sb.append("`").append(p.getColumnName()).append("`");
         } else {
             sb.append(pm.getFunName()).append("(");
-            sb.append(p.getCname());
+            sb.append(p.getColumnName());
             sb.append(")");
         }
     }
@@ -3505,12 +3599,12 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private Object getParamSqlValue(Object o, String pname) {
         if (o != null && !(o instanceof String) && !(o instanceof Number)) {
             PropInfo pp = getPropInfoByPName(pname);
-            if (o.getClass().isEnum() && pp.getType().isEnum()) {
+            if (o.getClass().isEnum() && pp.getFieldTypeClass().isEnum()) {
                 EnumType et = pp.getEnumType();
                 if (et.equals(EnumType.STRING)) {
                     return o.toString();
                 } else {
-                    Class<Enum> cls = (Class<Enum>) pp.getType();
+                    Class<Enum> cls = (Class<Enum>) pp.getFieldTypeClass();
                     return Enum.valueOf(cls, o.toString()).ordinal();
                 }
             } else if (pp.getSqlTypes() != null) {
@@ -3529,7 +3623,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         if (pname != null && pname.trim().length() > 0) {
             Set<PropInfo> pps = getPropInfos();
             for (PropInfo pp : pps) {
-                if (pp.getPname().equals(pname)) {
+                if (pp.getFieldName().equals(pname)) {
                     return pp;
                 }
             }
@@ -3552,7 +3646,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                 if (pm.getPname() != null && pm.getPname().trim().length() > 0) {
                     for (PropInfo p : tbimp.getValue()) {
                         if (p.getColumnRule() != null) {
-                            if (pm.getPname().equals(p.getPname()) && pm.getOrParam() == null) {
+                            if (pm.getPname().equals(p.getFieldName()) && pm.getOrParam() == null) {
                                 if (pm.getOperators().equals(Operate.EQ) && pm.getValue() != null) {
                                     String tableName = gettbName(tbimp, pm, p);
                                     if (isContainsTable(tableName)) {
@@ -3564,7 +3658,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                     for (Object sid : pm.getInValue()) {
                                         if (sid != null) {
                                             String tableName = getTableName(
-                                                    getTableMaxIdx(sid, p.getType(), p.getColumnRule()),
+                                                    getTableMaxIdx(sid, p.getFieldTypeClass(), p.getColumnRule()),
                                                     tbimp.getKey());
                                             if (isContainsTable(tableName)) {
                                                 tbns.add(tableName);
@@ -3577,8 +3671,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                 } else if (p.getColumnRule().ruleType().equals(RuleType.RANGE)
                                         && pm.getOperators().equals(Operate.BETWEEN) && pm.getValue() != null
                                         && pm.getFirstValue() != null) {
-                                    long st = getTableMaxIdx(pm.getFirstValue(), p.getType(), p.getColumnRule());
-                                    long ed = getTableMaxIdx(pm.getValue(), p.getType(), p.getColumnRule());
+                                    long st = getTableMaxIdx(pm.getFirstValue(), p.getFieldTypeClass(), p.getColumnRule());
+                                    long ed = getTableMaxIdx(pm.getValue(), p.getFieldTypeClass(), p.getColumnRule());
                                     Set<String> nms = gettbs(tbimp, st, ed);
                                     if (nms.size() > 0) {
                                         return nms;
@@ -3586,7 +3680,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
                                 } else if (p.getColumnRule().ruleType().equals(RuleType.RANGE)
                                         && pm.getOperators().equals(Operate.GE) && pm.getValue() != null) {
 
-                                    long st = getTableMaxIdx(pm.getValue(), p.getType(), p.getColumnRule());
+                                    long st = getTableMaxIdx(pm.getValue(), p.getFieldTypeClass(), p.getColumnRule());
                                     if (st > 0) {
                                         int len = getTableName(st, tbimp.getKey())
                                                 .split(KSentences.SHARDING_SPLT.getValue()).length;
@@ -3627,7 +3721,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     }
 
     private String gettbName(Entry<String, LinkedHashSet<PropInfo>> tbimp, Param pm, PropInfo p) {
-        return getTableName(getTableMaxIdx(pm.getValue(), p.getType(), p.getColumnRule()), tbimp.getKey());
+        return getTableName(getTableMaxIdx(pm.getValue(), p.getFieldTypeClass(), p.getColumnRule()), tbimp.getKey());
 
     }
 
@@ -3656,8 +3750,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
             }
             for (int i = 0; i < strings.length; i++) {
                 for (PropInfo pi : getPropInfos()) {
-                    if (strings[i].equals(pi.getPname())) {
-                        sb.append(pi.getCname());
+                    if (strings[i].equals(pi.getFieldName())) {
+                        sb.append(pi.getColumnName());
                         break;
                     }
                 }
@@ -3750,7 +3844,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private void changeToString(PropInfo pi) throws SQLException {
         for (String t : getCurrentTableNames()) {
-            String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, pi.getCname(), getVarchar(pi));
+            String altertablesql = String.format(ALTER_TABLE_MODIFY_COLUMN, t, pi.getColumnName(), getVarchar(pi));
             if (this.getConnectionManager().isShowSql()) {
                 log.info(altertablesql);
             }
@@ -3770,8 +3864,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     private String getIndexColumns(PropInfo p) {
         StringBuilder sbd = new StringBuilder();
-        sbd.append(p.getCname());
-        if (p.getType() == String.class && p.getLength() > p.getIndex().length()) {
+        sbd.append(p.getColumnName());
+        if (p.getFieldTypeClass() == String.class && p.getLength() > p.getIndex().length()) {
             if ("MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
                 if (p.getIndex().length() > 0) {
                     sbd.append("(").append(p.getIndex().length()).append(")");
@@ -3781,7 +3875,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         if (p.getIndex().otherPropName()!=null && p.getIndex().otherPropName().length!=0) {
             for (Other other : p.getIndex().otherPropName()) {
                 PropInfo propInfo = getPropInfoByPName(other.name());
-                sbd.append(KSentences.COMMA.getValue()).append(propInfo.getCname());
+                sbd.append(KSentences.COMMA.getValue()).append(propInfo.getColumnName());
                 if (other.length() > 0) {
                     sbd.append("(").append(other.length()).append(")");
                 }
@@ -3793,8 +3887,8 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
     private String getFullTextIndexColumns(PropInfo p) {
         StringBuilder sbd = new StringBuilder();
         MyIndexFullText fullTextIndex = p.getFullTextIndex();
-        sbd.append(p.getCname());
-        if (p.getType() == String.class && p.getLength() > fullTextIndex.length()) {
+        sbd.append(p.getColumnName());
+        if (p.getFieldTypeClass() == String.class && p.getLength() > fullTextIndex.length()) {
             if ("MySQL".equalsIgnoreCase(this.dataBaseTypeName)) {
                 if (fullTextIndex.length() > 0) {
                     sbd.append("(").append(fullTextIndex.length()).append(")");
@@ -3804,7 +3898,7 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
         if (fullTextIndex.otherPropName()!=null && fullTextIndex.otherPropName().length!=0) {
             for (Other other : fullTextIndex.otherPropName()) {
                 PropInfo propInfo = getPropInfoByPName(other.name());
-                sbd.append(KSentences.COMMA.getValue()).append(propInfo.getCname());
+                sbd.append(KSentences.COMMA.getValue()).append(propInfo.getColumnName());
                 if (other.length() > 0) {
                     sbd.append("(").append(other.length()).append(")");
                 }
@@ -3829,6 +3923,23 @@ public abstract class MyDataSupport<POJO> implements IMyData<POJO> {
 
     public void setShowSql(boolean showSql) {
         isShowSql = showSql;
+    }
+
+    private Boolean getQueryIsRead(){
+        boolean transactioning = getConnectionManager().isTransactioning();
+        Boolean isRead = true;
+        if (transactioning) {
+            isRead = false;
+        }
+        return isRead;
+    }
+
+    private String getColumnTypeSelect(String expectColumnType, String customColumnType) {
+        if (customColumnType != null) {
+            return customColumnType;
+        } else {
+            return expectColumnType;
+        }
     }
 
 //    @Override

@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import run.mydata.annotation.TransactionalOption;
 
-import javax.annotation.Resource;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -20,10 +19,14 @@ public class TransManagerDefault {
 
     @Around("@annotation(org.springframework.transaction.annotation.Transactional)")
     public Object transactional(ProceedingJoinPoint pjp) throws Throwable {
+        //获取切点
         MethodSignature signature = (MethodSignature) pjp.getSignature();
+        //获取执行方法
         Method method = signature.getMethod();
+        //获取是否选择性事务
         TransactionalOption option = method.getAnnotation(TransactionalOption.class);
         if (option != null && option.connectionManagerNames().length != 0) {//use option connection Manager
+            //选择性事务处理
             boolean contains = Arrays.asList(option.connectionManagerNames()).contains(connectionManager.getConnectionManagerName());
             try {
                 if (contains) {
@@ -46,6 +49,7 @@ public class TransManagerDefault {
                 throw e;
             }
         } else { //use all
+            //全部事务
             try {
                 log.debug("begin transaction  {}", Thread.currentThread().getName());
                 Boolean b = connectionManager.beginTransaction(false);
@@ -64,6 +68,6 @@ public class TransManagerDefault {
     }
 
     public void setConnectionManager(IConnectionManager connectionManager) {
-        this.connectionManager=connectionManager;
+        this.connectionManager = connectionManager;
     }
 }

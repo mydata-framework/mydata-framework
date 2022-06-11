@@ -192,8 +192,8 @@ public final class ConnectionManager implements IConnectionManager {
                         !Modifier.isStatic(field.getModifiers())//非Static
                 ) {
                     PropInfo info = new PropInfo();
-                    info.setPname(field.getName());
-                    info.setType(field.getType());
+                    info.setFieldName(field.getName());
+                    info.setFieldTypeClass(field.getType());
 
                     if (field.isAnnotationPresent(ColumnComment.class)) {
                         ColumnComment fieldColumnCommentAnnotation = field.getAnnotation(ColumnComment.class);
@@ -202,13 +202,20 @@ public final class ConnectionManager implements IConnectionManager {
                         }
                     }
 
+                    if (field.isAnnotationPresent(ColumnType.class)) {
+                        ColumnType columnType = field.getAnnotation(ColumnType.class);
+                        if (columnType.value() != null) {
+                            info.setColumnType(columnType);
+                        }
+                    }
+
                     if (field.isAnnotationPresent(Column.class)) {
                         Column fieldColumnAnnotation = field.getAnnotation(Column.class);
                         String columnName = fieldColumnAnnotation.name();
                         if (columnName != null && !columnName.equals("")) {
-                            info.setCname(columnName);
+                            info.setColumnName(columnName);
                         } else {
-                            info.setCname(field.getName());
+                            info.setColumnName(field.getName());
                         }
                         if ( field.getType() == String.class || field.getType().isEnum() ) {
                             info.setLength(fieldColumnAnnotation.length());
@@ -227,7 +234,7 @@ public final class ConnectionManager implements IConnectionManager {
                             info.setComment(fieldColumnAnnotation.columnDefinition());
                         }
                     } else {
-                        info.setCname(field.getName());
+                        info.setColumnName(field.getName());
                     }
 
                     if (field.isAnnotationPresent(Id.class)) {

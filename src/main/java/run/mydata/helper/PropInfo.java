@@ -2,6 +2,7 @@ package run.mydata.helper;
 
 
 import run.mydata.annotation.ColumnRule;
+import run.mydata.annotation.ColumnType;
 import run.mydata.annotation.MyIndexFullText;
 import run.mydata.annotation.MyIndex;
 
@@ -15,15 +16,15 @@ import javax.persistence.GenerationType;
  */
 public class PropInfo {
     // 属性名称
-    private String pname;
+    private String fieldName;
     // 数据库字段名称
-    private String cname;
+    private String columnName;
     // 是否主键
     private Boolean isPrimarykey = false;
     // 如果是切分字段，包含切分数据配置
     private ColumnRule columnRule;
     // 属性类型
-    private Class<?> type;
+    private Class<?> fieldTypeClass;
     // java.sql.Types,数据库字段类型
     private Integer sqlTypes;
     // 是否大字段
@@ -50,9 +51,11 @@ public class PropInfo {
     private Boolean version=false;
     //双精度长度定义,例如 DECIMAL(8,2)
     private String moreLength;
+    //特殊场景写主动指定表字段类型
+    private ColumnType columnType;
 
-    public String getPname() {
-        return pname;
+    public String getFieldName() {
+        return fieldName;
     }
 
     public String getGeneratorValueAnnoGeneratorVal() {
@@ -73,7 +76,7 @@ public class PropInfo {
 
     public PropInfo(String cname, Integer sqlTypes) {
         super();
-        this.cname = cname;
+        this.columnName = cname;
         this.sqlTypes = sqlTypes;
     }
 
@@ -127,32 +130,32 @@ public class PropInfo {
 
     public PropInfo(String pname, Class<?> type) {
         super();
-        this.pname = pname;
-        this.type = type;
+        this.fieldName = pname;
+        this.fieldTypeClass = type;
     }
 
-    public Class<?> getType() {
-        return type;
+    public Class<?> getFieldTypeClass() {
+        return fieldTypeClass;
     }
 
-    public void setType(Class<?> type) {
-        this.type = type;
+    public void setFieldTypeClass(Class<?> fieldTypeClass) {
+        this.fieldTypeClass = fieldTypeClass;
     }
 
-    public void setPname(String pname) {
-        this.pname = pname;
+    public void setFieldName(String fieldName) {
+        this.fieldName = fieldName;
     }
 
     public PropInfo() {
         super();
     }
 
-    public String getCname() {
-        return cname;
+    public String getColumnName() {
+        return columnName;
     }
 
-    public void setCname(String cname) {
-        this.cname = cname;
+    public void setColumnName(String columnName) {
+        this.columnName = columnName;
     }
 
     public Boolean getIsPrimarykey() {
@@ -209,5 +212,13 @@ public class PropInfo {
 
     public void setFullTextIndex(MyIndexFullText fullTextIndex) {
         this.fullTextIndex = fullTextIndex;
+    }
+
+    public ColumnType getColumnType() {
+        return columnType;
+    }
+
+    public void setColumnType(ColumnType columnType) {
+        this.columnType = columnType;
     }
 }

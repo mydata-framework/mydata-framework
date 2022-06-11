@@ -116,7 +116,24 @@ public interface MyObjectUtils {
                     } else if (ov.getClass() == BigInteger.class && fd.getType() != BigInteger.class) {
                         BigInteger bdov = (BigInteger) ov;
                         setNumberValue(fd, obj, bdov);
-                    } else {
+                    } else if (fd.getType() == Byte.class && ov.getClass() == Integer.class){
+                        fd.set(obj, new Byte(ov.toString()));
+                    } else if (fd.getType() == Short.class && ov.getClass() == Integer.class ){
+                        fd.set(obj, new Short(ov.toString()));
+                    } else if (fd.getType() == Character.class && ov.getClass() == String.class){
+                        if (ov == null) {
+                            fd.set(obj, null);
+                        }
+                        else {
+                            String value = ov.toString();
+                            if (value.equals("")) {
+                                fd.set(obj, null);
+                            } else {
+                                char[] chars = ov.toString().toCharArray();
+                                fd.set(obj, chars[0]);
+                            }
+                        }
+                    }else {
                         if (fd.getType() == Time.class && ov.getClass() == Timestamp.class) {
                             Timestamp tmst = (Timestamp) ov;
                             fd.set(obj, new Time(tmst.getTime()));
@@ -140,7 +157,11 @@ public interface MyObjectUtils {
                                     throw new IllegalStateException(e);
                                 }
                             } else {
-                                fd.set(obj, ov);
+                                try {
+                                    fd.set(obj, ov);
+                                } catch (Exception e) {
+                                    throw e;
+                                }
                             }
                         }
                     }
